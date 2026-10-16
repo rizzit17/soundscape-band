@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# C host builds
+c/deda_host_double
+c/deda_host_float
+*.o
+*.out
+
+# PlatformIO / Arduino
+.pio/
+.vscode/
+build/
+
+# Demo / scratch outputs
+python/demo_*.csv
+python/demo_results.json
+python/results.json
+
+# Large or private data (host recordings on Zenodo, not Git)
+data/raw/
+data/recordings/
+*.wav
+*.flac
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,34 @@
+SYNTHETIC free-field checks - optimistic, not a substitute for recorded data
+
+1) quadrant accuracy / mean |error| (deg), 100 trials per cell, angles 0/90/180/270 +-20 deg
+   fs=16000 SNR= 20 dB broadband  bins=all: quadrant 100%  mean err   0.2
+   fs=16000 SNR= 20 dB broadband  bins=top25%: quadrant 100%  mean err   0.2
+   fs=16000 SNR= 20 dB horn-like  bins=all: quadrant  92%  mean err  15.9
+   fs=16000 SNR= 20 dB horn-like  bins=top25%: quadrant 100%  mean err   4.0
+   fs=16000 SNR= 10 dB broadband  bins=all: quadrant 100%  mean err   0.6
+   fs=16000 SNR= 10 dB broadband  bins=top25%: quadrant 100%  mean err   0.6
+   fs=16000 SNR= 10 dB horn-like  bins=all: quadrant  91%  mean err  19.2
+   fs=16000 SNR= 10 dB horn-like  bins=top25%: quadrant 100%  mean err   6.8
+   fs=16000 SNR=  0 dB broadband  bins=all: quadrant 100%  mean err   2.2
+   fs=16000 SNR=  0 dB broadband  bins=top25%: quadrant 100%  mean err   1.9
+   fs=16000 SNR=  0 dB horn-like  bins=all: quadrant  64%  mean err  44.8
+   fs=16000 SNR=  0 dB horn-like  bins=top25%: quadrant  93%  mean err  17.3
+   fs=48000 SNR= 20 dB broadband  bins=all: quadrant 100%  mean err   0.3
+   fs=48000 SNR= 20 dB broadband  bins=top25%: quadrant 100%  mean err   0.2
+   fs=48000 SNR= 20 dB horn-like  bins=all: quadrant  98%  mean err   9.5
+   fs=48000 SNR= 20 dB horn-like  bins=top25%: quadrant 100%  mean err   3.6
+   fs=48000 SNR= 10 dB broadband  bins=all: quadrant 100%  mean err   0.7
+   fs=48000 SNR= 10 dB broadband  bins=top25%: quadrant 100%  mean err   0.6
+   fs=48000 SNR= 10 dB horn-like  bins=all: quadrant  93%  mean err  16.7
+   fs=48000 SNR= 10 dB horn-like  bins=top25%: quadrant 100%  mean err   5.2
+   fs=48000 SNR=  0 dB broadband  bins=all: quadrant 100%  mean err   2.0
+   fs=48000 SNR=  0 dB broadband  bins=top25%: quadrant 100%  mean err   1.8
+   fs=48000 SNR=  0 dB horn-like  bins=all: quadrant  75%  mean err  32.6
+   fs=48000 SNR=  0 dB horn-like  bins=top25%: quadrant 100%  mean err   7.8
+2) closure |tau01+tau12+tau20| (samples), median over 100 trials, fs=48 kHz, SNR 20 dB
+   single source               : closure 0.01   |v| 1.00 (1.0 expected)
+   two sources, equal level    : closure 1.90   |v| 0.98 (1.0 expected)
+   mic 2 offset by +3 samples  : closure 0.94   |v| 1.18 (1.0 expected)
+3) min-pair PHAT coherence, median of 50 trials (fs=48 kHz, no extra noise)
+   band  300-6000 Hz: point source 0.97   diffuse field 0.31
+   band 2500-8000 Hz: point source 0.97   diffuse field 0.15

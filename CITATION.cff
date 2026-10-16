@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "SoundScape Band: Dual-Evidence Deadline Alerting (DEDA) reference implementation"
+abstract: "Reliability-aware directional haptic alerting for a low-cost three-microphone wearable for Deaf and hard-of-hearing users. Python reference, embedded C core, tests and simulations."
+type: software
+authors:
+  - given-names: Rishit
+    family-names: Chaudhary
+    affiliation: "Vellore Institute of Technology, Vellore, India"
+  - given-names: Siddharth
+    family-names: Verma
+    affiliation: "Vellore Institute of Technology, Vellore, India"
+  - given-names: Deeksha
+    family-names: V
+    affiliation: "Vellore Institute of Technology, Vellore, India"
+version: 1.0.0
+date-released: 2026-10-16
+license: MIT
+repository-code: "https://github.com/<owner>/soundscape-band"
+keywords:
+  - assistive technology
+  - sound source localisation
+  - haptic feedback
+  - TinyML
+  - GCC-PHAT
+  - wearable
+preferred-citation:
+  type: article
+  title: "Reliability-Aware Directional Haptic Alerting for a Low-Cost Three-Microphone Wearable for Deaf and Hard-of-Hearing Users"
+  authors:
+    - given-names: Rishit
+      family-names: Chaudhary
+    - given-names: Siddharth
+      family-names: Verma
+    - given-names: Deeksha
+      family-names: V
+  year: 2026
+  notes: "Manuscript under review"
