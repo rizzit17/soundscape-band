@@ -10,6 +10,19 @@ SoundScape Band is a sub-₹2,000 neckband that detects safety-critical sounds (
 
 Existing sound-alert wearables either give no direction, or show an angle without knowing whether it can be trusted. A wrong-direction vibration sends the wearer's attention away from the hazard. DEDA decides **what** a sound is and **where** it comes from with separate evidence. A direction is accepted only when three cheap geometric checks agree: the TDOA closure of the microphone triangle, the plane-wave norm, and the GCC-PHAT coherence computed on the strongest frequency bins. If the class is certain but the direction is not, the band still alerts within 300 ms on all four motors and sends a directional update once the direction settles. **An uncertain class can be rejected; an uncertain direction can never block an alert.**
 
+<details>
+<summary><strong>Proposed wearable architecture and signal flow</strong></summary>
+
+![Proposed wearable architecture: three microphones, edge processing, four vibration motors, and an optional BLE companion](docs/figures/system_architecture.png)
+
+*Hardware design concept. The Android prototype currently uses the phone microphone and vibration motor; the BLE wearable connection shown here is proposed.*
+
+![Proposed signal flow from microphone buffering through direction and sound classification to haptic output](docs/figures/data_flow.png)
+
+*The simulator supplies synthetic class inputs to the existing direction and DEDA code. The Android app runs pretrained YAMNet with a separate phone alert policy.*
+
+</details>
+
 ## Status
 
 ### Android real-audio prototype
@@ -38,6 +51,10 @@ Synthetic decision-level streams, 4 seeds × 20 min, operating points chosen on 
 Free-field direction front end, harmonic horn-like source at 0 dB SNR, 16 kHz: correct quadrant **64 % → 93 %** when GCC-PHAT uses only the strongest 25 % of bins.
 
 The sequential confirmation of uncertain classes gave **no** measurable benefit in simulation. Full tables: [`results/`](results/) · trade-off curves: [`docs/figures/synthetic_tradeoff.png`](docs/figures/synthetic_tradeoff.png).
+
+![Synthetic benchmark trade-off curves comparing false alerts and wrong-direction alerts against missed or late critical events](docs/figures/synthetic_tradeoff.png)
+
+*Original decision-stream benchmark and ablations. These curves describe simulation performance, not measurements from a physical wearable or the Android app.*
 
 ## Repository layout
 
@@ -68,11 +85,19 @@ Open **http://127.0.0.1:8765**. On Windows, `Start-Simulator.cmd` also starts th
 
 Complete setup, presentation walkthrough, experiments, limitations, and Colab instructions: **[Simulation guide](docs/SIMULATION_GUIDE.md)**.
 
+![Browser simulator showing a back-motor command, a 173-degree direction estimate, geometry reliability checks, and baseline comparison](docs/screenshots/simulator-decision.png)
+
+*Actual browser simulator screenshot showing the decision inspection and replay controls. Class confidence and microphone signals are simulated; motor commands are visualized on screen.*
+
 ```powershell
 python python/run_simulator_experiment.py --suite quick --seeds 2
 ```
 
 This creates new timestamped results under `results/simulation/`, preserving the paper's original results. It is a new acoustic stress suite using frozen default thresholds, **not** a reproduction of the paper's decision-stream benchmark.
+
+![Acoustic stress suite comparing baseline and DEDA: wrong-direction alerts, missed or late events, and general first warnings](docs/figures/acoustic_stress_comparison.png)
+
+*Saved full acoustic stress-suite run: baseline wrong-direction alerts 36.9%, DEDA 11.2%; both missed or late 35.0%. General first warnings account for 67.1% of detected DEDA events. These use synthetic class inputs and default thresholds, so they belong to a separate experiment from the benchmark above.*
 
 ### Original research scripts
 
@@ -121,6 +146,15 @@ No dynamic allocation, no recursion, constant work per window. Decision state: 3
 ## Hardware
 
 3 × INMP441 I²S MEMS microphones (≈35 mm triangle), RP2040 or ESP32, 4 × coin vibration motors with transistor drivers, 3.7 V 500 mAh Li-ion + TP4056. See [`hardware/BOM.md`](hardware/BOM.md) and [`hardware/wiring.md`](hardware/wiring.md). **All three microphones must share the same I²S bit and word clocks**; an unsynchronised microphone corrupts every TDOA.
+
+<details>
+<summary><strong>Planned physical evaluation setup</strong></summary>
+
+![Planned wearable test arrangement with speakers at four directions and distances of one, three, and five metres](docs/figures/test_setup.png)
+
+*Proposed hardware test protocol, not a photograph or evidence of completed physical testing. The phone prototype currently evaluates sound recognition and general vibration without source-angle validation.*
+
+</details>
 
 ## Team
 
