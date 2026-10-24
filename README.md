@@ -85,7 +85,7 @@ Open **http://127.0.0.1:8765**. On Windows, `Start-Simulator.cmd` also starts th
 
 Complete setup, presentation walkthrough, experiments, limitations, and Colab instructions: **[Simulation guide](docs/SIMULATION_GUIDE.md)**.
 
-![Browser simulator showing a back-motor command, a 173-degree direction estimate, geometry reliability checks, and baseline comparison](docs/screenshots/simulator-decision.png)
+![Browser simulator showing a back-motor command, a 173-degree direction estimate, geometry reliability checks, and baseline comparison](docs/screenshots/simulator-decision.jpg)
 
 *Actual browser simulator screenshot showing the decision inspection and replay controls. Class confidence and microphone signals are simulated; motor commands are visualized on screen.*
 
