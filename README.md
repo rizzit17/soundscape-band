@@ -12,6 +12,10 @@ Existing sound-alert wearables either give no direction, or show an angle withou
 
 ## Status
 
+### Android real-audio prototype
+
+[`android/`](android/README.md) contains **SoundScape Lab**, an installable offline Android companion for live microphone classification, phone vibration, and CSV test logs. It uses pretrained YAMNet with a separate persistence gate. It does not validate the wearable's microphone geometry, directional DEDA, four motors, or 300 ms deadline. See its README for installation, build instructions, and the real-audio evaluation protocol.
+
 | Component | Synthetic data | Recorded audio | On RP2040 / ESP32 |
 |---|---|---|---|
 | DEDA decision policy (Python + C) | ✅ tested | ⏳ not yet | ⏳ not yet |
@@ -50,6 +54,27 @@ data/               log format for recorded trials (recordings themselves are ho
 ```
 
 ## Quick start
+
+### Interactive simulation without hardware
+
+The browser lab now connects simulated three-microphone signals to the **existing Python GCC-PHAT and DEDA implementations**, with virtual motors, replay, reliability checks, baseline comparison, and JSON/CSV exports. Sound-class probabilities remain explicitly simulated; no trained classifier or physical motor response is claimed.
+
+```powershell
+python -m pip install -r requirements.txt
+python python/simulator_server.py
+```
+
+Open **http://127.0.0.1:8765**. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
+
+Complete setup, presentation walkthrough, experiments, limitations, and Colab instructions: **[Simulation guide](docs/SIMULATION_GUIDE.md)**.
+
+```powershell
+python python/run_simulator_experiment.py --suite quick --seeds 2
+```
+
+This creates new timestamped results under `results/simulation/`, preserving the paper's original results. It is a new acoustic stress suite using frozen default thresholds, **not** a reproduction of the paper's decision-stream benchmark.
+
+### Original research scripts
 
 Requires Python ≥ 3.10, a C compiler and `make`.
 

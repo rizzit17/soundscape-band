@@ -1,0 +1,5 @@
+<resources>
+    <item name="listen_start" type="id"/>
+    <item name="listen_stop" type="id"/>
+    <item name="listen_status" type="id"/>
+</resources>

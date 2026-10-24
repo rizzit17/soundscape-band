@@ -9,6 +9,8 @@ venv/
 # C host builds
 c/deda_host_double
 c/deda_host_float
+c/deda_host_double.exe
+c/deda_host_float.exe
 *.o
 *.out
 
@@ -21,6 +23,11 @@ build/
 python/demo_*.csv
 python/demo_results.json
 python/results.json
+results/simulation/
+work/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/*.tflite
 
 # Large or private data (host recordings on Zenodo, not Git)
 data/raw/

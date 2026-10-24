@@ -19,6 +19,8 @@ KIND = {"DIR": 0, "NONDIR": 1, "UPDATE": 2}
 
 def _bin(name):
     p = os.path.join(CDIR, name)
+    if os.name == "nt":
+        p += ".exe"
     if not os.path.exists(p):
         pytest.skip("C host build missing - run `make` in c/")
     return p
