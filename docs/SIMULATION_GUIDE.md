@@ -55,14 +55,15 @@ Direction uses the wearer's frame: **0° front, 90° right, 180° back, 270° le
 
 ## 5 Demonstrate the main scenarios
 
-Use the preset buttons beneath the wearable. Each preset resets the seed, duration and strongest-bin setting so it is reproducible.
+Use the preset buttons above the workspace. Each preset resets the seed, duration and strongest-bin setting so it is reproducible. The initial scene computes automatically and pauses at its first warning. For a concise presentation sequence, use the [final review guide](FINAL_REVIEW_GUIDE.md).
 
 | Preset | What to show | Explanation |
 | --- | --- | --- |
-| Horn from behind | Back motor; seed 7 first alert at 320 ms, or 128 ms after sound onset | Python estimates the direction independently of the selected true angle |
-| Siren from the left | Left motor; seed 7 first alert 64 ms after sound onset | A reliable estimate permits a directional warning |
+| Horn behind | Back motor; seed 7 first alert at 320 ms, or 128 ms after sound onset | Python estimates the direction independently of the selected true angle |
+| Siren left | Left motor; seed 7 first alert 64 ms after sound onset | A reliable estimate permits a directional warning |
 | Direction dropout | All four motors; seed 7 warning 192 ms after onset | Explicit fault injection removes the direction observation before policy processing |
-| Ambient noise | No alert | Scripted probabilities favor ambient; this does not measure classifier performance |
+| Uncertain class | No accepted warning at score 0.30 | Direction alone cannot substitute for accepted class evidence |
+| Ambient only | No alert | Scripted probabilities favor ambient; this does not measure classifier performance |
 | Competing sources | Inspect raw angles, reliability and both policies | Two sources can fool the reliability checks; do not promise that DEDA always selects the true source |
 
 Run a preset, then replay at 0.5× or pause and scrub the timeline. Inspect a window during the sound, not just the ambient tail. The source starts at 192 ms; the 1024 ms preset sound ends at 1216 ms.
@@ -73,7 +74,7 @@ The measured values on your machine may differ slightly with numerical library v
 
 Select **Reversing beep**, angle 0°, SNR 20 dB, seed 7. A narrowband signal can make direction ambiguous even without room reflections. The model may issue a general warning. Explain why fallback is a valid result rather than forcing the front motor to light up.
 
-Lower class confidence and shorten the event to 64 ms in Advanced settings. A short or weak event can be missed: the deadline does not guarantee recognition of every sound. A reliable direction alone cannot substitute for accepted sound-class evidence.
+Lower class confidence and shorten the event to 64 ms in Reproducibility settings. A short or weak event can be missed: the deadline does not guarantee recognition of every sound. A reliable direction alone cannot substitute for accepted sound-class evidence.
 
 ## 6 Export a single demonstration
 
@@ -86,7 +87,7 @@ The browser saves these to your normal Downloads location. Its replay time does 
 
 ## 7 Run a new experiment
 
-Open **Experiments & results** in the browser. Start with **Quick** and **2 seeds**, then click **Run experiment**.
+Open **Experiments** in the browser. Start with **Quick** and **1 seed**, then click **Run experiment**. The progress bar counts completed trials. **Cancel** finishes the current trial and discards the incomplete result; it does not publish partial rates. Reloading the same tab reconnects to its running job while the Python server remains active. Only the latest job is retained in server memory, so download completed evidence before starting another job or restarting the server.
 
 | Suite | Coverage per seed |
 | --- | --- |

@@ -193,7 +193,7 @@ def summarize(trials, key):
                 false_alerts_per_ambient_hour=sum(r[key]["false_alerts"] for r in ambient) / ambient_hours if ambient_hours else None)
 
 
-def experiment(raw=None):
+def experiment(raw=None, *, progress=None, cancelled=None):
     """Frozen default policies; acoustic stress tests, not a calibrated benchmark."""
     raw = raw or {}
     seeds = number(raw.get("seeds", 2), "seed count", 1, 5, True)
@@ -204,6 +204,13 @@ def experiment(raw=None):
     conditions = ("clean", "interference", "clock_fault", "reflection") if full else ("clean", "interference")
     snrs = (20, 0, -10) if full else (20, 0)
     trials = []
+    total = seeds * (192 if full else 32) + seeds
+    def trial(raw):
+        if cancelled and cancelled():
+            raise InterruptedError("Experiment cancelled between trials")
+        trials.append(simulate(raw, include_frames=False))
+        if progress:
+            progress(len(trials), total)
     started = time.perf_counter()
     for seed in range(seeds):
         for sound in sounds:
@@ -212,11 +219,10 @@ def experiment(raw=None):
                     for angle in (0, 90, 180, 270):
                         # Confidence variation is an assumption, independent of the acoustics.
                         confidence = (.65, .8, .95)[(seed + int(angle / 90)) % 3]
-                        r = simulate(dict(sound=sound, condition=condition, snr_db=snr,
+                        trial(dict(sound=sound, condition=condition, snr_db=snr,
                                           angle=angle, confidence=confidence, seed=1000 + seed,
-                                          event_ms=384), include_frames=False)
-                        trials.append(r)
-        trials.append(simulate(dict(sound="ambient", seed=1000 + seed, event_ms=384), include_frames=False))
+                                          event_ms=384))
+        trial(dict(sound="ambient", seed=1000 + seed, event_ms=384))
     return dict(note="New acoustic stress suite using frozen, uncalibrated default DEDA thresholds and baseline tau=0.7. Not a reproduction of the paper's decision-stream benchmark. Class probabilities are scripted; ambient probabilities contain no false confusers, so zero false alerts is not a classifier result. Ambient exposure is very short. No MCU or motor timing.",
                 suite="full" if full else "quick", seeds=seeds,
                 runtime_ms=round((time.perf_counter() - started) * 1000, 2),

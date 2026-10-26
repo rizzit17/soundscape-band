@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import threading
+import time
 from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -65,6 +66,49 @@ def test_seeded_suite_counts_denominators_and_serialization():
 def test_invalid_inputs_rejected(data):
     with pytest.raises(ValueError):
         simulate(data)
+
+
+def test_experiment_progress_is_real_and_cancellation_prevents_partial_summary():
+    seen = []
+    with pytest.raises(InterruptedError):
+        experiment(dict(seeds=1), progress=lambda done,total: seen.append((done,total)),
+                   cancelled=lambda: len(seen)>=2)
+    assert seen == [(1,33),(2,33)]
+
+
+def test_async_experiment_api_and_cancel(monkeypatch):
+    import simulator_server as api
+    entered, release = threading.Event(), threading.Event()
+    def slow_experiment(raw, *, progress, cancelled):
+        entered.set()
+        progress(1,33)
+        assert release.wait(5)
+        if cancelled(): raise InterruptedError()
+        raise AssertionError('Test job should have been cancelled')
+    monkeypatch.setattr(api,'experiment',slow_experiment)
+    server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+    url=f'http://127.0.0.1:{server.server_port}'
+    def post(path,data):
+        return json.load(urlopen(Request(url+path,data=json.dumps(data).encode(),headers={'Content-Type':'application/json'})))
+    try:
+        job=post('/api/experiment/start',dict(seeds=1))
+        assert entered.wait(2)
+        state=json.load(urlopen(url+'/api/experiment/status?id='+job['id']))
+        assert state['completed']==1 and state['total']==33 and state['result'] is None
+        with pytest.raises(HTTPError) as err:post('/api/simulate',{})
+        assert err.value.code==409
+        post('/api/experiment/cancel',job);release.set()
+        for _ in range(100):
+            state=json.load(urlopen(url+'/api/experiment/status?id='+job['id']))
+            if state['state']=='cancelled' and not api.LOCK.locked():break
+            time.sleep(.01)
+        assert state['state']=='cancelled' and state['result'] is None
+        assert not api.LOCK.locked()
+        with pytest.raises(HTTPError) as err:post('/api/experiment/start',{'seeds':True})
+        assert err.value.code==400
+    finally:
+        release.set();server.shutdown();server.server_close();thread.join()
 
 
 def test_server_routes_validation_and_origin():

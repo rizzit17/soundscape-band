@@ -83,11 +83,15 @@ python python/simulator_server.py
 
 Open **http://127.0.0.1:8765**. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
 
-Complete setup, presentation walkthrough, experiments, limitations, and Colab instructions: **[Simulation guide](docs/SIMULATION_GUIDE.md)**.
+The minimalist workspace includes six scene presets, exact-window replay, a processing trace, local comparison history, and JSON/CSV exports. Experiments report real trial progress and support cancellation. A five-case review checklist generates inspectable evidence and a print-friendly summary.
 
-![Browser simulator showing a back-motor command, a 173-degree direction estimate, geometry reliability checks, and baseline comparison](docs/screenshots/simulator-decision.jpg)
+For the final presentation, start with the **[four-minute review guide](docs/FINAL_REVIEW_GUIDE.md)**. Complete setup, experiments, limitations, and Colab instructions: **[Simulation guide](docs/SIMULATION_GUIDE.md)**.
 
-*Actual browser simulator screenshot showing the decision inspection and replay controls. Class confidence and microphone signals are simulated; motor commands are visualized on screen.*
+![SoundScape Lab showing a computed back-motor command, direction checks, timing comparison and replay](docs/screenshots/simulator-review.jpg)
+
+*Actual scene explorer screenshot. Python computes the direction and policy decisions from synthetic microphone signals; class confidence is a scripted input and motor commands are visualized on screen.*
+
+![Final review checklist with five computed scene checks and evidence export](docs/screenshots/simulator-checklist.jpg)
 
 ```powershell
 python python/run_simulator_experiment.py --suite quick --seeds 2
