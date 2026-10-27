@@ -12,8 +12,6 @@ SoundScape Band investigates DEDA (Dual-Evidence Deadline Alerting), a policy th
 
 - [Final Word report — 15 pages](docs/submission/SoundScape_Final_Report_Updated.docx)
 - [Final Word research paper — 5 pages](docs/submission/SoundScape_Final_Research_Paper_Updated.docx)
-- [Project teaching guide](docs/PROJECT_TEACHING_GUIDE.md)
-- [Browser listening and presentation guide](simulator/README.md)
 - [Wokwi kit and upload instructions](wokwi/README.md)
 - [Expanded synthetic dataset and reproduction details](results/final_simulation_study/README.md)
 
