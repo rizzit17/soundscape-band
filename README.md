@@ -8,6 +8,17 @@ SoundScape Band investigates DEDA (Dual-Evidence Deadline Alerting), a policy th
 
 **[Launch SoundScape Lab](https://soundscape-simulation.vercel.app)** in a modern browser. No installation or local Python server is needed for this hosted version. Click Hear & watch, then Presentation mode. The Python engine runs on Vercel; hosted experiments return results when complete rather than using the local background-job controls. [Deployment details](deployment/README.md).
 
+### Wokwi virtual device demonstration
+
+Open the two online Wokwi demonstrations:
+
+- [Wokwi simulation 1](https://wokwi.com/projects/479065380305937409)
+- [Wokwi simulation 2](https://wokwi.com/projects/479067404737540097)
+
+These are supplementary virtual demonstrations; their input models and baseline configurations may differ. Neither establishes physical wearable performance.
+
+Open the [Wokwi guide](wokwi/README.md), then copy the six files from [wokwi/sketch](wokwi/sketch) into a new ESP32 project. The OLED explains actual C-policy decisions; five buttons select scenarios and LEDs illustrate directional or general output patterns. Prepared observations are replayed through the policy; Wokwi does not listen to sounds or run the full acoustic/classification pipeline. Host checks match the five Python cases. The upgraded replay/display sketch compiles for ESP32, which does not establish physical resource, timing or energy feasibility.
+
 ## Latest submission
 
 - [Final Word report — 15 pages](docs/submission/SoundScape_Final_Report_Updated.docx)
@@ -145,17 +156,6 @@ This creates new timestamped results under `results/simulation/`, preserving the
 ![Acoustic stress suite comparing baseline and DEDA: wrong-direction alerts, missed or late events, and general first warnings](docs/figures/acoustic_stress_comparison.png)
 
 *Saved full acoustic stress-suite run: baseline wrong-direction alerts 36.9%, DEDA 11.2%; both missed or late 35.0%. General first warnings account for 67.1% of detected DEDA events. These use synthetic class inputs and default thresholds, so they belong to a separate experiment from the benchmark above.*
-
-### Wokwi virtual device demonstration
-
-Open the two online Wokwi demonstrations:
-
-- [Wokwi simulation 1](https://wokwi.com/projects/479065380305937409)
-- [Wokwi simulation 2](https://wokwi.com/projects/479067404737540097)
-
-These are supplementary virtual demonstrations; their input models and baseline configurations may differ. Neither establishes physical wearable performance.
-
-Open the [Wokwi guide](wokwi/README.md), then copy the six files from [wokwi/sketch](wokwi/sketch) into a new ESP32 project. The OLED explains actual C-policy decisions; five buttons select scenarios and LEDs illustrate directional or general output patterns. Prepared observations are replayed through the policy; Wokwi does not listen to sounds or run the full acoustic/classification pipeline. Host checks match the five Python cases. The upgraded replay/display sketch compiles for ESP32, which does not establish physical resource, timing or energy feasibility.
 
 ### Reproduce the expanded numerical study
 
