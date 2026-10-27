@@ -22,7 +22,8 @@
   if (typeof module !== "undefined" && module.exports) { module.exports = {frameIndex, outcomeText, reviewMatches}; return; }
 
   const $ = id => document.getElementById(id);
-  const soundNames = {horn:"Vehicle horn", siren:"Siren", shout:"Shout-like noise", beep:"Reversing beep", ambient:"Ambient noise"};
+  const soundNames = {horn:"Vehicle horn", siren:"Siren", shout:"Shout-like noise", beep:"Reversing beep", ambient:"Ambient noise", ambulance:"Ambulance siren", truck_horn:"Truck air horn", smoke_alarm:"Smoke alarm", dog_bark:"Dog barking", doorbell:"Doorbell", glass_break:"Glass breaking", rain:"Rain"};
+  const policyClasses = {horn:"Horn",siren:"Siren",shout:"Shout",beep:"Beep",ambient:"Ambient",ambulance:"Siren",truck_horn:"Horn",smoke_alarm:"Siren",dog_bark:"Ambient",doorbell:"Ambient",glass_break:"Ambient",rain:"Ambient"};
   const conditionNames = {clean:"Single source", interference:"Competing sources", reflection:"Reflection surrogate", clock_fault:"Timing fault", dropout:"Direction dropout"};
   const motorNames = ["Front", "Right", "Back", "Left"];
   const fmt = (n, digits = 1) => n == null || !Number.isFinite(Number(n)) ? "—" : Number(n).toFixed(digits);
@@ -64,8 +65,10 @@
     const ambient = $("sound").value === "ambient";
     text("angle-value",ambient ? "Not applicable" : `${$("angle").value}° · ${angleName(+$("angle").value)}`);
     text("snr-value",ambient ? "Not used" : `${$("snr").value} dB`);
-    text("confidence-value",ambient ? "96% ambient" : `${$("confidence").value}%`);
-    ["angle","snr","confidence"].forEach(id => $(id).disabled = ambient);
+    text("confidence-value",policyClasses[$("sound").value]==="Ambient" ? "96% ambient" : `${$("confidence").value}%`);
+    text("sound-policy",policyClasses[$("sound").value]==="Ambient" && !ambient?"Outside the four alert classes: supplies scripted Ambient input, so no warning is expected.":`Policy input: ${policyClasses[$("sound").value]}. Synthetic waveform; class scores are scripted, not recognized.`);
+    ["angle","snr"].forEach(id => $(id).disabled = ambient);$("confidence").disabled=policyClasses[$("sound").value]==="Ambient";
+    document.querySelectorAll("[data-sound]").forEach(b=>b.classList.toggle("selected",b.dataset.sound===$("sound").value));
     document.querySelectorAll("[data-angle]").forEach(b => b.disabled = ambient || Boolean(busy));
     $("stale").hidden = !result || signature(settings()) === signature(result.options);
     document.querySelectorAll("[data-preset]").forEach(b => b.classList.toggle("selected",signature(settings()) === signature(presets[b.dataset.preset])));
@@ -74,7 +77,7 @@
     busy = kind;
     $("scene-fields").disabled = Boolean(kind) || !connected;
     ["run","reset","run-experiment","run-review","suite","seeds","guided-start","guided-fallback","listen-stage","next-demo"].forEach(id => $(id).disabled = Boolean(kind) || !connected);
-    document.querySelectorAll("[data-preset],[data-restore]").forEach(b => b.disabled = Boolean(kind) || !connected);
+    document.querySelectorAll("[data-preset],[data-restore],[data-sound]").forEach(b => b.disabled = Boolean(kind) || !connected);
     document.body.classList.toggle("computing",kind === "scene");
     labels();
   }
@@ -154,6 +157,7 @@
       else {title=`A ${soundNames[result.options.sound].toLowerCase()} warning points ${a.motor_names.join(" and ").toLowerCase()}.`;body="Class evidence and accumulated direction evidence supported this command. Passing checks can still allow an incorrect but plausible direction; compare the outcome above.";}
     } else if(f?.decision.includes("Class accepted")) {step="direction";title="The sound is accepted. Its direction needs more evidence.";body="This is DEDA's separate decision: accepting an event does not automatically accept its direction. The policy waits within a bounded decision budget.";}
     else if(f?.decision.includes("Accumulating")) {step="class";title="Evidence is building across analysis windows.";body="DEDA accumulates class evidence while checking whether direction observations agree. It does not immediately turn every raw angle into a warning.";}
+    else if(result.scenario?.outside_alert_classes) {step="class";title="This sound is outside the current alert classes.";body="You can hear the synthetic example, but this scenario deliberately supplies Ambient scores. No alert is expected by design; the system has not learned to recognize this sound.";}
     else if(active && result.options.sound!=="ambient") {step="class";title="You can hear a sound. The class evidence is insufficient.";body="Audibility and classification confidence are different. Here the score is a scripted input; the policy can withhold an alert, which also means an important event can be missed.";}
     else if(result.options.sound==="ambient") {title="Background sound does not trigger this control case.";body="The input is scripted as ambient. This demonstrates the policy's no-alert path, not measured real-world false-alarm performance.";}
     else if(replayTime>=result.offset_ms) {title="The event ended without an accepted warning.";body="Inspect the class input and direction checks to understand the miss. Withholding an uncertain alert has a cost as well as a benefit.";}
@@ -262,8 +266,8 @@
     text("correct",outcomeText(m));$("correct").classList.toggle("bad",Boolean(m.wrong_direction));
     text("class-summary",m.critical?m.detected?(m.correct_class?"First alert class matched":"First alert class did not match"):"Class evidence not accepted":"Scripted ambient probabilities");
     text("baseline-latency",!b.critical?"No event":b.detected?`${b.latency_ms} ms`:"No warning");text("baseline-summary",outcomeText(b));
-    $("true-direction").setAttribute("transform",`rotate(${r.options.angle} 200 200)`);$("true-direction").style.display=m.critical?"":"none";
-    text("scene-explanation",r.options.sound==="ambient"?"This control uses a fixed ambient probability of 0.96 and no false-class confusers. No alert here is not evidence of classifier accuracy.":`${conditionNames[r.options.condition]}. The scripted ${soundNames[r.options.sound].toLowerCase()} score is ${Math.round(r.options.confidence*100)}%; the direction and motor commands are computed from synthetic microphone signals.`);
+    $("true-direction").setAttribute("transform",`rotate(${r.options.angle} 200 200)`);$("true-direction").style.display=r.options.sound!=="ambient"?"":"none";
+    text("scene-explanation",r.scenario?.outside_alert_classes?`${soundNames[r.options.sound]} is an audible synthetic example outside the four critical classes. Scripted Ambient scores are supplied; no alert is expected. Direction is still computed from the generated microphone channels.`:r.options.sound==="ambient"?"This control uses a fixed ambient probability of 0.96 and no false-class confusers. No alert here is not evidence of classifier accuracy.":`${conditionNames[r.options.condition]}. The scripted ${policyClasses[r.options.sound].toLowerCase()} class score is ${Math.round(r.options.confidence*100)}%; the direction and motor commands are computed from synthetic microphone signals.`);
     text("runtime",`Seed ${r.options.seed} · engine computation ${fmt(r.runtime_ms,0)} ms · no hardware timing`);
     $("source-range").style.left=`${r.onset_ms/r.duration_ms*100}%`;$("source-range").style.width=`${(r.offset_ms-r.onset_ms)/r.duration_ms*100}%`;$("source-range").style.right="auto";
     $("timeline").max=r.duration_ms;$("timeline").step=r.hop_ms;
@@ -380,6 +384,7 @@
   $("reset").addEventListener("click",()=>{applySettings(defaults);status("run-status","Default settings restored. Run the scene to recompute.");});
   document.querySelectorAll("[data-angle]").forEach(b=>b.addEventListener("click",()=>{$("angle").value=b.dataset.angle;labels();}));
   $("compass").addEventListener("click",e=>{if(busy||!connected||$("sound").value==="ambient")return;const point=new DOMPoint(e.clientX,e.clientY).matrixTransform($("compass").getScreenCTM().inverse());if(Math.hypot(point.x-200,point.y-200)<45)return;$("angle").value=Math.round((Math.atan2(point.x-200,200-point.y)*180/Math.PI+360)%360)%360;labels();});
+  document.querySelectorAll("[data-sound]").forEach(b=>b.addEventListener("click",()=>{if(busy||!connected)return;applySettings({...defaults,sound:b.dataset.sound});guidedScene();}));
   document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>{applySettings(presets[b.dataset.preset]);runScene();}));
   $("timeline").addEventListener("input",()=>seek(Number($("timeline").value)));$("play").addEventListener("click",togglePlay);
   $("previous").addEventListener("click",()=>seek((Math.ceil(replayTime/result.hop_ms)-1)*result.hop_ms));$("next").addEventListener("click",()=>seek((Math.floor(replayTime/result.hop_ms)+1)*result.hop_ms));

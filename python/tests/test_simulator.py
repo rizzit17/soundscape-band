@@ -153,3 +153,27 @@ def test_listening_audio_is_the_same_microphone_signal_as_trace():
         expected = np.asarray(frame['waveform'][0]) * audio['normalization_gain']
         np.testing.assert_allclose(samples[i*1024:(i+1)*1024:16], expected, atol=1/32767)
     assert simulate(dict(seed=83), include_frames=False)['audio'] is None
+
+@pytest.mark.parametrize('sound,policy_class', [('ambulance','siren'),('truck_horn','horn'),('smoke_alarm','siren'),('dog_bark','ambient'),('doorbell','ambient'),('glass_break','ambient'),('rain','ambient')])
+def test_environment_examples_preserve_policy_class_scope(sound, policy_class):
+    import base64
+    import numpy as np
+    r = simulate(dict(sound=sound))
+    assert r['scenario']['policy_class'] == policy_class
+    assert r['scenario']['synthetic'] is True
+    samples = np.frombuffer(base64.b64decode(r['audio']['data']), dtype='<i2')
+    assert np.isfinite(samples).all() and np.max(np.abs(samples.astype(float))) > 100
+    assert r['audio']['data'] == simulate(dict(sound=sound))['audio']['data']
+    if policy_class == 'ambient':
+        assert r['scenario']['outside_alert_classes'] is True
+        assert not r['deda']['critical']
+        assert r['alerts'] == []
+        assert all(f['probs'][4] == .96 for f in r['frames'])
+    else:
+        assert r['deda']['detected'] and r['deda']['correct_class']
+        assert r['deda']['first_alert']['sound'] == policy_class
+
+
+def test_environment_examples_have_distinct_audio():
+    sounds = ['horn','siren','ambulance','truck_horn','smoke_alarm','dog_bark','doorbell','glass_break','rain']
+    assert len({simulate(dict(sound=s))['audio']['data'] for s in sounds}) == len(sounds)

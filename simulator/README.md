@@ -44,3 +44,22 @@ Latest submission: [Word report](../docs/submission/SoundScape_Final_Report_Upda
 
 
 Hosted experiments return the full result in a single request. Live per-trial progress, cancellation and reload recovery apply to the local server only. Keep the hosted experiment tab open until its results return.
+
+
+## Common environment sound library
+
+The Sound selector and everyday-environment buttons now offer **12 procedural sound scenarios**: the original horn, siren, shout-like noise, reversing beep and ambient noise, plus ambulance siren, truck air horn, smoke alarm, dog barking, doorbell, glass breaking and rain.
+
+| Added waveform | Scripted policy input | Expected policy scope |
+|---|---|---|
+| Ambulance siren | Siren | Critical-event example |
+| Truck air horn | Horn | Critical-event example |
+| Smoke alarm | Siren | Critical-event example |
+| Dog barking | Ambient | Outside the four critical classes; no alert expected |
+| Doorbell | Ambient | Outside the four critical classes; no alert expected |
+| Glass breaking | Ambient | Outside the four critical classes; no alert expected |
+| Rain | Ambient | Outside the four critical classes; no alert expected |
+
+Clicking a sound-library button applies the default scene settings and starts audible replay. Use the dropdown to retain other settings, then Run scene. Unsupported critical classes are not silently added or relabelled as Shout. Ambient routing for these controls is a deliberate input assumption, not an assessment that a real dog or breaking glass is harmless. The screen explains this boundary. Source direction and SNR remain adjustable for these generated sources, while the critical-class score control is disabled when Ambient input is supplied.
+
+Each added sound has a different generated waveform; it is not a recording. The audio still comes from the actual synthetic Mic 1 channel used for direction estimation. No recognizer was trained or expanded. The DEDA/C class dimensions and Wokwi prepared cases are unchanged. The scientific benchmark and quick/full experiment matrix retain their original sound classes and sample counts; these additions are scene-explorer examples, not new evaluation results.

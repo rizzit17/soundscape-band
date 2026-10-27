@@ -54,3 +54,8 @@ Node is optional for these JavaScript checks and is not needed to run the app. W
 ![Scene explorer with computed direction, reliability checks and replay](screenshots/simulator-review.jpg)
 
 ![Review checklist after computing all five cases](screenshots/simulator-checklist.jpg)
+
+
+## Additional everyday sounds
+
+The browser now has 12 synthetic source scenarios. Use the everyday-sound buttons to hear ambulance, truck horn, smoke alarm, dog barking, doorbell, glass breaking and rain. Ambulance/smoke alarm reuse the Siren policy input; truck horn reuses Horn. The other additions deliberately supply Ambient scores because the original policy has no corresponding critical class. Explain that no alert is expected by design, not that a trained classifier correctly rejected a hazard. The original five review cases and study counts are unchanged. [Exact mappings](../simulator/README.md#common-environment-sound-library).

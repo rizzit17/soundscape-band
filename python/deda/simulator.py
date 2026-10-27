@@ -17,6 +17,12 @@ from .doa import estimate_direction, simulate_array, triangle_positions
 from .policy import CLASSES, Config, DEDA, DirObs, FixedThreshold, Window, dir_valid, quadrant_of
 
 CONDITIONS = ("clean", "interference", "clock_fault", "reflection", "dropout")
+# Waveform scenarios map to the existing five policy inputs. New audio examples
+# do not add trained classes or change the study's DEDA/C model dimensions.
+SOUND_CLASSES = {name:name for name in CLASSES}
+SOUND_CLASSES.update(ambulance='siren', truck_horn='horn', smoke_alarm='siren',
+                     dog_bark='ambient', doorbell='ambient', glass_break='ambient', rain='ambient')
+
 MOTOR_NAMES = ((1, "Front"), (2, "Right"), (4, "Back"), (8, "Left"))
 
 
@@ -38,7 +44,7 @@ def options(raw: dict | None = None) -> dict:
     raw = raw or {}
     cls = raw.get("sound", "horn")
     condition = raw.get("condition", "clean")
-    if cls not in CLASSES or condition not in CONDITIONS:
+    if cls not in SOUND_CLASSES or condition not in CONDITIONS:
         raise ValueError("Unknown sound or acoustic condition")
     return dict(sound=cls, condition=condition,
                 angle=number(raw.get("angle", 180), "angle", 0, 359),
@@ -63,6 +69,40 @@ def source_signal(sound, t, rng):
     if sound == "shout":
         # A speech-like amplitude-modulated broadband surrogate; no actual speech.
         return rng.normal(size=len(t)) * (.6 + .4 * np.sin(2 * np.pi * 7 * t))
+    # New examples are illustrative procedural surrogates, not recordings.
+    elapsed = np.maximum(t - .192, 0)
+    if sound == 'truck_horn':
+        envelope = .8 + .2 * np.sin(2 * np.pi * 2 * elapsed)
+        return envelope * sum(np.sin(2*np.pi*f*h*t)/h for f in (110,165) for h in range(1,15))
+    if sound == 'ambulance':
+        freq = np.where((elapsed % .44) < .22, 700., 1050.)
+        phase = 2*np.pi*np.cumsum(freq)/16000
+        return np.sin(phase) + .22*np.sin(3*phase)
+    if sound == 'smoke_alarm':
+        gate = (elapsed % .32) < .17
+        return gate * (np.sin(2*np.pi*2800*t) + .2*np.sin(2*np.pi*5600*t))
+    if sound == 'dog_bark':
+        phase = elapsed % .38
+        envelope = np.where(phase < .19, np.sin(np.pi*np.minimum(phase,.19)/.19)**1.4, 0)
+        pitch = 190 + 140*np.exp(-phase*18)
+        voiced = np.sin(2*np.pi*np.cumsum(pitch)/16000)
+        noise = rng.normal(size=len(t))
+        body = np.convolve(noise, np.ones(9)/9, mode='same')
+        return envelope * (voiced + .5*voiced**3 + 1.3*body)
+    if sound == 'doorbell':
+        phase = elapsed % .9
+        first = np.exp(-phase*8)*(np.sin(2*np.pi*660*t)+.3*np.sin(2*np.pi*1320*t))
+        second_time = np.maximum(phase-.32,0)
+        second = (phase>=.32)*np.exp(-second_time*7)*np.sin(2*np.pi*523.25*t)
+        return first + second
+    if sound == 'glass_break':
+        noise = rng.normal(size=len(t))
+        impact = np.exp(-elapsed*35)*noise
+        shards = sum(np.sin(2*np.pi*f*t + rng.uniform(0,2*np.pi)) for f in (1700,2310,3180,4230,5570))/5
+        return impact + .7*np.exp(-elapsed*5)*shards
+    if sound == 'rain':
+        noise = rng.normal(size=len(t))
+        return np.convolve(noise, np.array([.2,.6,1.,.6,.2]), mode='same')
     return np.zeros(len(t))
 
 
@@ -74,12 +114,12 @@ def alert_dict(a):
 
 def outcome(alerts, o, onset, offset):
     first = next((a for a in alerts if a.kind != "UPDATE" and onset <= a.t_ms <= offset + 500), None)
-    critical = o["sound"] != "ambient"
+    critical = SOUND_CLASSES[o["sound"]] != "ambient"
     detections = [a for a in alerts if a.kind != "UPDATE"]
     false = sum(not critical or not onset <= a.t_ms <= offset + 500 for a in detections)
     wrong = bool(critical and first and first.kind == "DIR" and not first.motors & (1 << quadrant_of(o["angle"])))
     return dict(critical=critical, detected=bool(first) if critical else False,
-                correct_class=bool(first and CLASSES[first.cls] == o["sound"]) if critical else None,
+                correct_class=bool(first and CLASSES[first.cls] == SOUND_CLASSES[o["sound"]]) if critical else None,
                 missed=critical and first is None,
                 missed_or_late=critical and (first is None or first.t_ms - onset > 300),
                 wrong_direction=wrong, nondirectional=bool(first and first.kind == "NONDIR") if critical else False,
@@ -126,8 +166,8 @@ def simulate(raw: dict | None = None, *, include_frames=True) -> dict[str, Any]:
         d = None if o["condition"] == "dropout" else DirObs(**dataclasses.asdict(obs))
         coverage = float(np.mean(active[i:i + hop]))
         probs = np.full(5, .01)
-        if o["sound"] != "ambient" and coverage > 0:
-            c = CLASSES.index(o["sound"])
+        if SOUND_CLASSES[o["sound"]] != "ambient" and coverage > 0:
+            c = CLASSES.index(SOUND_CLASSES[o["sound"]])
             # Deliberately simulated probabilities; acoustic SNR is not a CNN.
             p = .02 + (o["confidence"] - .02) * coverage
             probs[:] = (1 - p) / 4
@@ -177,7 +217,7 @@ def simulate(raw: dict | None = None, *, include_frames=True) -> dict[str, Any]:
                      normalization_gain=0.85 / peak,
                      note='Actual synthetic mic-1 samples, peak-normalized uniformly; mono, not spatial hearing or a real recording.')
 
-    return dict(audio=audio, schema_version=1, note="Synthetic free-field audio; class probabilities are simulated inputs, not a trained classifier. No hardware measurements.",
+    return dict(audio=audio, scenario=dict(sound=o["sound"], policy_class=SOUND_CLASSES[o["sound"]], synthetic=True, outside_alert_classes=SOUND_CLASSES[o["sound"]]=="ambient" and o["sound"]!="ambient"), schema_version=1, note="Synthetic free-field audio; class probabilities are simulated inputs, not a trained classifier. No hardware measurements.",
                 options=o, sample_rate=fs, hop_ms=64, onset_ms=onset, offset_ms=offset,
                 duration_ms=total_ms, processing_allowance_ms=cfg.proc_ms,
                 runtime_ms=round((time.perf_counter() - started) * 1000, 2),

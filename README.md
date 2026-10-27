@@ -112,6 +112,8 @@ python python/simulator_server.py
 
 Open **http://127.0.0.1:8765**. To use the review-session port, run `python python/simulator_server.py --port 8766` and open **http://127.0.0.1:8766**. These addresses are for the local version; the public Vercel link above works without the laptop server. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
 
+The scene explorer offers 12 synthetic sound scenarios, including ambulance sirens, truck horns, smoke alarms, dog barking, doorbells, glass breaking and rain. The first three reuse existing alert classes; the other additions are explicitly labelled outside-class controls with no alert expected. [Sound mappings](simulator/README.md#common-environment-sound-library). The study and Wokwi cases retain their existing class definitions.
+
 The workspace includes audible replay of the same synthetic Mic 1 signal, live DEDA explanations, presentation mode, Baseline B versus DEDA commands, class-evidence bars and key-event jumps. Replay speeds are 0.25×, 0.5×, 1× and 2×; changing speed also changes pitch. Run scene recomputes settings and starts replay, respecting the mute switch. Six presets, processing traces, local history and JSON/CSV exports remain available. Experiments report real trial progress and support cancellation. A five-case review checklist generates inspectable evidence and a print-friendly summary.
 
 For the final presentation, start with the **[four-minute review guide](docs/FINAL_REVIEW_GUIDE.md)**. Complete setup, experiments, limitations, and Colab instructions: **[Simulation guide](docs/SIMULATION_GUIDE.md)**.
