@@ -877,7 +877,7 @@ The policy comparison cards show the last actual command of each policy at the s
 
 The evidence bars show post-step support for horn, siren, shout and beep. Positive scores support a class; negative scores oppose it. They are not percentages. Scores reset after an alert, so the alert window can show zero. Direction checks can pass on an incorrect but physically plausible angle. Read the true-source outcome as well as the checks.
 
-No public hosting is configured. To launch the current review setup:
+The public browser simulation is now available at **https://soundscape-simulation.vercel.app** without a local server. Hosted experiments return results when complete; live progress, cancellation and reload recovery remain local-server features. To launch the local review setup instead:
 
 ```powershell
 python python/simulator_server.py --port 8766

@@ -2,6 +2,9 @@
 
 ## Start the demonstration
 
+For the hosted review, open **https://soundscape-simulation.vercel.app**. No terminal is needed. The following instructions describe the offline/local alternative. Hosted experiments return when complete; per-trial progress, cancellation and reload recovery are local-version features.
+
+
 Double-click `Start-Simulator.cmd` in the project folder. Keep its terminal open and open **http://127.0.0.1:8765**. The header should show **Python engine connected**. On a new computer, install Python 3.10+ and run `python -m pip install -r requirements.txt` first. See [the setup guide](SIMULATION_GUIDE.md) for an isolated environment.
 
 The interface uses local assets and runs without internet after dependency installation. It requires the Python server; opening the HTML file directly will not work.

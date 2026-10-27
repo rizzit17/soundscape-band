@@ -41,3 +41,6 @@ Thumbs.db
 
 # Restricted temporary pytest directories
 python/pytest-cache-files-*/
+
+# Vercel local project linkage
+.vercel/

@@ -1,5 +1,7 @@
 # Browser listening demo
 
+Hosted version: **https://soundscape-simulation.vercel.app**. Open it directly; no terminal is needed. [Vercel details](../deployment/README.md).
+
 Run `Start-Simulator.cmd` from the repository root, or `python python/simulator_server.py`, then open http://127.0.0.1:8765. Restart an already-running Python server after updating, and refresh the browser.
 
 ## Review walkthrough
@@ -36,6 +38,9 @@ The full lab's class-evidence panel shows the policy's four post-step accumulate
 
 **Run scene** recomputes the current settings and immediately starts replay from model time zero, even when the settings have not changed. It preserves the mute setting. **Listen & replay** enables audio and can reuse the matching computed scene. On initial page load, the automatic computation is paused for inspection.
 
-For the review-session port, use `python python/simulator_server.py --port 8766`, then open http://127.0.0.1:8766. The default remains 8765. The server must keep running on the same computer; no public deployment is configured.
+For the review-session port, use `python python/simulator_server.py --port 8766`, then open http://127.0.0.1:8766. The default remains 8765. For local use the server must keep running on the same computer. The public Vercel version runs Python remotely and does not need your laptop server.
 
 Latest submission: [Word report](../docs/submission/SoundScape_Final_Report_Updated.docx) and [Word paper](../docs/submission/SoundScape_Final_Research_Paper_Updated.docx).
+
+
+Hosted experiments return the full result in a single request. Live per-trial progress, cancellation and reload recovery apply to the local server only. Keep the hosted experiment tab open until its results return.

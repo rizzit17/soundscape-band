@@ -1,5 +1,7 @@
 # SoundScape Band simulation guide
 
+Public version: **https://soundscape-simulation.vercel.app**. Open it directly in a browser. The instructions below remain available for local/offline use; [deployment notes](../deployment/README.md) explain the hosted experiment differences.
+
 You can complete and demonstrate the software prototype without microphones, a microcontroller or vibration motors. The browser application runs the repository's Python direction estimator and DEDA algorithm. It generates virtual microphone signals and displays the resulting motor commands.
 
 Sound classification is currently represented by explicitly simulated probabilities. This guide completes the acoustic simulation and alert-policy demonstration; it does not claim automatic recognition of real recordings or a finished physical wearable.

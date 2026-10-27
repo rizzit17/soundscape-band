@@ -4,6 +4,10 @@
 
 SoundScape Band investigates DEDA (Dual-Evidence Deadline Alerting), a policy that accepts sound-class evidence separately from direction evidence. The current submission consists of a synthetic numerical study, an audible Python-backed browser simulation and a Wokwi virtual ESP32 policy replay. A three-microphone neckband with four vibration motors is the proposed hardware concept; no physical wearable or recorded wearable validation is submitted.
 
+## Open the live simulation
+
+**[Launch SoundScape Lab](https://soundscape-simulation.vercel.app)** in a modern browser. No installation or local Python server is needed for this hosted version. Click Hear & watch, then Presentation mode. The Python engine runs on Vercel; hosted experiments return results when complete rather than using the local background-job controls. [Deployment details](deployment/README.md).
+
 ## Latest submission
 
 - [Final Word report — 15 pages](docs/submission/SoundScape_Final_Report_Updated.docx)
@@ -108,7 +112,7 @@ python -m pip install -r requirements.txt
 python python/simulator_server.py
 ```
 
-Open **http://127.0.0.1:8765**. To use the review-session port, run `python python/simulator_server.py --port 8766` and open **http://127.0.0.1:8766**. These are local addresses, not public hosting. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
+Open **http://127.0.0.1:8765**. To use the review-session port, run `python python/simulator_server.py --port 8766` and open **http://127.0.0.1:8766**. These addresses are for the local version; the public Vercel link above works without the laptop server. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
 
 The workspace includes audible replay of the same synthetic Mic 1 signal, live DEDA explanations, presentation mode, Baseline B versus DEDA commands, class-evidence bars and key-event jumps. Replay speeds are 0.25×, 0.5×, 1× and 2×; changing speed also changes pitch. Run scene recomputes settings and starts replay, respecting the mute switch. Six presets, processing traces, local history and JSON/CSV exports remain available. Experiments report real trial progress and support cancellation. A five-case review checklist generates inspectable evidence and a print-friendly summary.
 

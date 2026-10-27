@@ -40,7 +40,7 @@
     {key:"weak",name:"Uncertain class",expected:"No accepted warning at score 0.30"},
     {key:"ambient",name:"Ambient control",expected:"No warning with the scripted ambient input"}
   ];
-  let result = null, experimentResult = null, reviewResults = [], busy = "", connected = false;
+  let result = null, experimentResult = null, reviewResults = [], busy = "", connected = false, hosted = false;
   let playing = false, replayTime = 0, lastTick = 0, lastIndex = -2, animationId = null;
   let jobId = null, pollTimer = null, pollInFlight = false;
   let history = [];
@@ -78,17 +78,17 @@
     document.body.classList.toggle("computing",kind === "scene");
     labels();
   }
-  async function request(path, payload) {
+  async function request(path, payload, timeoutMs = 20000) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(),20000);
+    const timeout = setTimeout(() => controller.abort(),timeoutMs);
     try {
       const response = await fetch(path, {signal:controller.signal,...(payload === undefined ? {} : {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})});
       const data = await response.json();
       if (!response.ok) { const e = new Error(data.error || "Request failed"); e.status = response.status; throw e; }
       return data;
     } catch (error) {
-      if (error.name === "AbortError") throw new Error("The engine did not respond in time. Check the Python server and reconnect.");
-      if (error instanceof TypeError) throw new Error("Cannot reach Python. Start the simulator server and reconnect.");
+      if (error.name === "AbortError") throw new Error(hosted?"The hosted calculation timed out. Try a smaller experiment or retry the scene.":"The engine did not respond in time. Check the Python server and reconnect.");
+      if (error instanceof TypeError) throw new Error(location.hostname!=="127.0.0.1" && location.hostname!=="localhost"?"Cannot reach the hosted Python engine. Check your connection and retry.":"Cannot reach Python. Start the simulator server and reconnect.");
       throw error;
     } finally { clearTimeout(timeout); }
   }
@@ -329,6 +329,19 @@
   async function runExperiment() {
     if(busy||!connected)return;stopReplay();setBusy("experiment");experimentResult=null;$("experiment-data").hidden=true;$("experiment-empty").hidden=false;
     $("experiment-json").disabled=true;$("experiment-csv").disabled=true;$("experiment-progress").hidden=false;$("progress").value=0;text("progress-value","Preparing trials…");status("experiment-status","Starting the trial matrix…");
+    if(hosted) {
+      $("cancel-experiment").hidden=true;$("progress").removeAttribute("value");
+      text("progress-value","Computing in hosted Python…");
+      status("experiment-status","Keep this tab open. Hosted experiments return when complete; live progress, cancellation and reload recovery are available in the local version.");
+      try {
+        experimentResult=await request("/api/experiment",{suite:$("suite").value,seeds:Number($("seeds").value)},150000);
+        experimentDisplay();$("progress").max=experimentResult.trials.length;$("progress").value=experimentResult.trials.length;
+        text("progress-value",`${experimentResult.trials.length} / ${experimentResult.trials.length} trials`);
+        status("experiment-status",`Completed ${experimentResult.trials.length} trials in hosted Python. Results and exports are ready.`);
+      } catch(e) {status("experiment-status",e.message,true);$("experiment-progress").hidden=true;}
+      finally {setBusy();}
+      return;
+    }
     try{const job=await request("/api/experiment/start",{suite:$("suite").value,seeds:Number($("seeds").value)});rememberJob(job.id);$("cancel-experiment").hidden=false;$("cancel-experiment").disabled=false;pollJob();}
     catch(e){status("experiment-status",e.message,true);setBusy();}
   }
@@ -346,10 +359,10 @@
   }
   async function connect() {
     try {
-      const health=await request("/api/health");if(health.status!=="ok")throw new Error("Engine is unavailable");connected=true;text("connection","Python engine connected");$("connection").className="online";$("reconnect").hidden=true;setBusy(busy);renderHistory();
+      const health=await request("/api/health");if(health.status!=="ok")throw new Error("Engine is unavailable");connected=true;hosted=health.execution==="serverless";if(hosted)rememberJob(null);text("connection",hosted?"Hosted Python engine connected":"Python engine connected");$("connection").className="online";$("reconnect").hidden=true;setBusy(busy);renderHistory();
       if(jobId){setBusy("experiment");$("cancel-experiment").hidden=false;$("cancel-experiment").disabled=false;tab("experiment");pollJob();}
       else if(!result&&!busy){applySettings(defaults);runScene();}
-    } catch(e){connected=false;text("connection","Python server unavailable");$("connection").className="error";$("reconnect").hidden=false;setBusy(busy);status("run-status","Start-Simulator.cmd starts the local engine. Then select Reconnect.",true);}
+    } catch(e){connected=false;text("connection","Python server unavailable");$("connection").className="error";$("reconnect").hidden=false;setBusy(busy);status("run-status",location.hostname!=="127.0.0.1" && location.hostname!=="localhost"?"Hosted engine unavailable. Try Reconnect in a moment.":"Start-Simulator.cmd starts the local engine. Then select Reconnect.",true);}
   }
 
   $("scene-form").noValidate=true;
