@@ -13,12 +13,20 @@ An offline, foreground-only microphone testing companion for the SoundScape Band
 
 The APK is debug-signed for direct installation, not a Play Store release. Minimum Android version is 8.0; ARM64 is the intended phone architecture. Actual phone compatibility and audio performance must be checked on the Motorola Edge 40.
 
+## Vibration update 0.2
+
+Install version 0.2 over the previous app to retain private test logs. Tap **Test vibration (no sound needed)** before listening. This explicitly requests a long pulse even if the automatic Vibration alerts switch is off. If you feel nothing, use **Open phone sound settings** to check vibration intensity and Do Not Disturb. Android can filter a successful vibration request; the app cannot confirm physical motor movement.
+
+Automatic alerts now default to one qualifying target window. Turn on **Require two matching windows** before starting if you prefer the previous persistence rule. Both modes use a three-second shared cooldown. The alert status explains whether the app is waiting for a target score, confirming a second window, cooling down, or triggering an alert. Labels outside the four mapped groups can appear in the model results without causing vibration.
+
+Pulses use explicit maximum amplitude where supported and notification vibration attributes. Phone sound settings still apply. The CSV `alert` field records a policy trigger, not evidence that a motor physically vibrated. New `config` rows record app version, required windows and cooldown; ignore these rows when counting audio windows. Record version and mode when comparing new trials with version 0.1.
+
 ## What it does
 
 - Captures 16 kHz mono PCM in 15,600-sample (975 ms) windows.
 - Displays the five highest model labels and the highest score among four mapped target groups.
 - Uses the maximum score in each group, not a sum or a softmax normalization. Model scores are not calibrated probabilities.
-- Requires two consecutive windows of the same target group above threshold before alerting. All alerts share a 3-second cooldown. The default threshold is 0.30 and is adjustable before a session.
+- Requires one qualifying target window by default, or two consecutive windows of the same group when confirmation is enabled. All alerts share a 3-second cooldown. The default threshold is 0.30 and is adjustable before a session.
 - Generates distinct general phone vibration patterns: horn = two pulses; siren = long pulse; reversing = three short pulses; shouting = short–long.
 - Logs each classified window, expected label, target score, threshold, alert flag, inference duration, relative input level in dBFS, and optional manual feedback.
 

@@ -1,14 +1,23 @@
 # SoundScape Band
 
-**Reliability-aware directional haptic alerting for a low-cost, three-microphone wearable for Deaf and hard-of-hearing users.**
+**A simulation study of reliability-aware directional haptic alert decisions for Deaf and hard-of-hearing users.**
 
-SoundScape Band is a sub-₹2,000 neckband that detects safety-critical sounds (vehicle horn, siren/alarm, shout, reversing beep) and tells the wearer *where* they come from through four vibration motors (front, right, back, left). This repository contains **DEDA (Dual-Evidence Deadline Alerting)**, the decision algorithm that turns the band's direction estimates and sound-class predictions into haptic alerts, together with its tests, simulations and evaluation scripts.
+SoundScape Band investigates DEDA (Dual-Evidence Deadline Alerting), a policy that accepts sound-class evidence separately from direction evidence. The current submission consists of a synthetic numerical study, an audible Python-backed browser simulation and a Wokwi virtual ESP32 policy replay. A three-microphone neckband with four vibration motors is the proposed hardware concept; no physical wearable or recorded wearable validation is submitted.
+
+## Latest submission
+
+- [Final Word report — 15 pages](docs/submission/SoundScape_Final_Report_Updated.docx)
+- [Final Word research paper — 5 pages](docs/submission/SoundScape_Final_Research_Paper_Updated.docx)
+- [Project teaching guide](docs/PROJECT_TEACHING_GUIDE.md)
+- [Browser listening and presentation guide](simulator/README.md)
+- [Wokwi kit and upload instructions](wokwi/README.md)
+- [Expanded synthetic dataset and reproduction details](results/final_simulation_study/README.md)
 
 ![DEDA state diagram](docs/figures/deda_state_diagram.png)
 
 ## The idea in one paragraph
 
-Existing sound-alert wearables either give no direction, or show an angle without knowing whether it can be trusted. A wrong-direction vibration sends the wearer's attention away from the hazard. DEDA decides **what** a sound is and **where** it comes from with separate evidence. A direction is accepted only when three cheap geometric checks agree: the TDOA closure of the microphone triangle, the plane-wave norm, and the GCC-PHAT coherence computed on the strongest frequency bins. If the class is certain but the direction is not, the band still alerts within 300 ms on all four motors and sends a directional update once the direction settles. **An uncertain class can be rejected; an uncertain direction can never block an alert.**
+DEDA can accept an important sound event while withholding an uncertain direction. It combines empirical class evidence, a bounded decision episode and accumulated direction evidence filtered by closure, plane-wave norm and PHAT coherence checks. Accepted class evidence can produce a directional command or a general four-output warning. Passing these checks does not guarantee a correct direction. The 300 ms setting is a simulation reference target, not a guaranteed physical onset-to-vibration deadline. Waiting, rejection and class uncertainty can produce missed or late warnings.
 
 <details>
 <summary><strong>Proposed wearable architecture and signal flow</strong></summary>
@@ -31,15 +40,29 @@ Existing sound-alert wearables either give no direction, or show an angle withou
 
 | Component | Synthetic data | Recorded audio | On RP2040 / ESP32 |
 |---|---|---|---|
-| DEDA decision policy (Python + C) | ✅ tested | ⏳ not yet | ⏳ not yet |
+| DEDA decision policy (Python + C) | Tested | Not evaluated | Prepared-input C replay in Wokwi; no physical board evaluation |
 | GCC-PHAT fractional-lag grid + reliability checks | ✅ tested (free field) | ⏳ not yet | ⏳ not yet |
-| C core matches Python reference | ✅ exact (double), 94/94 alerts (float) | — | ⏳ not yet compiled for MCU |
+| C core matches Python reference | Host equivalence checks; five replay cases match Python | — | ESP32 replay sketch compiled; full audio pipeline untested |
 | `evaluate_logs.py` (real-data comparison) | ✅ smoke-tested | ⏳ waiting for recordings | — |
 | Firmware integration | — | — | ⏳ see [`firmware/`](firmware/) |
 
 > **All results below come from simulation.** They check that the logic behaves as designed; they are not evidence of real-world performance. The recorded-data protocol is in [`docs/experiment_protocol.md`](docs/experiment_protocol.md).
 
-## Key results (simulation)
+## Expanded study results
+
+The latest study uses **100 synthetic streams, 3,594 events**, separate stress/deadline sets, and **4,200 acoustic scenes** with paired bin-selection estimates. Rates below are mean per-stream rates; class scores and localization error distributions are generated assumptions.
+
+| Policy | Wrong-direction events % [95% CI] | Missed or late >300 ms % | General warnings % of detections | False alerts / ambient hour |
+|---|---|---|---|---|
+| Baseline B | 20.31 [18.98, 21.62] | 10.2 | 1.4 | 306.4 |
+| DEDA | 2.45 [1.93, 3.01] | 15.3 | 14.1 | 286.8 |
+
+Fewer misleading spatial commands come with additional missed-or-late events and reduced directional specificity. The false-alert burden remains high. Simpler immediate-fallback and no-direction-wait variants remain strong alternatives. These are synthetic policy outcomes, not measured recognition accuracy or wearable safety benefits. See the [dataset protocol](results/final_simulation_study/README.md) and final documents for ablations, confidence intervals, error definitions and adverse findings.
+
+<details>
+<summary>Historical four-seed results and figures</summary>
+
+### Original decision-stream study
 
 Synthetic decision-level streams, 4 seeds × 20 min, operating points chosen on separate calibration streams (mean ± SD):
 
@@ -50,24 +73,28 @@ Synthetic decision-level streams, 4 seeds × 20 min, operating points chosen on 
 
 Free-field direction front end, harmonic horn-like source at 0 dB SNR, 16 kHz: correct quadrant **64 % → 93 %** when GCC-PHAT uses only the strongest 25 % of bins.
 
-The sequential confirmation of uncertain classes gave **no** measurable benefit in simulation. Full tables: [`results/`](results/) · trade-off curves: [`docs/figures/synthetic_tradeoff.png`](docs/figures/synthetic_tradeoff.png).
+The original study did not find a benefit from sequential confirmation at its operating point; the expanded ablations report its timing and false-alert trade-offs separately. Full tables: [`results/`](results/) · trade-off curves: [`docs/figures/synthetic_tradeoff.png`](docs/figures/synthetic_tradeoff.png).
 
 ![Synthetic benchmark trade-off curves comparing false alerts and wrong-direction alerts against missed or late critical events](docs/figures/synthetic_tradeoff.png)
 
 *Original decision-stream benchmark and ablations. These curves describe simulation performance, not measurements from a physical wearable or the Android app.*
 
+
+</details>
+
 ## Repository layout
 
 ```
 python/deda/        reference implementation: policy.py (DEDA + baselines), doa.py (GCC-PHAT, checks), metrics.py, synth.py
-python/tests/       31 unit and Python-vs-C equivalence tests
+python/tests/       policy, acoustic, service and Python-vs-C checks
 python/*.py         run_synthetic.py, acoustic_checks.py, evaluate_logs.py, make_demo_logs.py
 c/                  embedded C99 core: deda.c/.h (decision policy), doa_gcc.c (GCC grid, direction maths), host test driver
 firmware/           MCU integration notes and example
 hardware/           bill of materials and wiring
-docs/               algorithm specification, experiment protocol, figures
+docs/               final Word submissions, teaching guide, protocol, screenshots
+wokwi/              virtual ESP32 policy replay with OLED, buttons and LEDs
 results/            outputs behind the numbers in the paper
-data/               log format for recorded trials (recordings themselves are hosted externally)
+data/               log format for future recorded trials; no wearable recordings supplied
 ```
 
 ## Quick start
@@ -81,17 +108,29 @@ python -m pip install -r requirements.txt
 python python/simulator_server.py
 ```
 
-Open **http://127.0.0.1:8765**. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
+Open **http://127.0.0.1:8765**. To use the review-session port, run `python python/simulator_server.py --port 8766` and open **http://127.0.0.1:8766**. These are local addresses, not public hosting. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
 
-The minimalist workspace includes six scene presets, exact-window replay, a processing trace, local comparison history, and JSON/CSV exports. Experiments report real trial progress and support cancellation. A five-case review checklist generates inspectable evidence and a print-friendly summary.
+The workspace includes audible replay of the same synthetic Mic 1 signal, live DEDA explanations, presentation mode, Baseline B versus DEDA commands, class-evidence bars and key-event jumps. Replay speeds are 0.25×, 0.5×, 1× and 2×; changing speed also changes pitch. Run scene recomputes settings and starts replay, respecting the mute switch. Six presets, processing traces, local history and JSON/CSV exports remain available. Experiments report real trial progress and support cancellation. A five-case review checklist generates inspectable evidence and a print-friendly summary.
 
 For the final presentation, start with the **[four-minute review guide](docs/FINAL_REVIEW_GUIDE.md)**. Complete setup, experiments, limitations, and Colab instructions: **[Simulation guide](docs/SIMULATION_GUIDE.md)**.
+
+![Current presentation mode comparing Baseline B and DEDA on the same synthetic horn scene](docs/screenshots/simulator-presentation.jpg)
+
+*Actual browser view: Baseline B warns at 64 model ms and DEDA at 128 model ms in this scene. Audio is synthetic; class scores are scripted.*
+
+![Audible scene replay with general fallback commands and the three microphone traces](docs/screenshots/simulator-listening.jpg)
+
+*Actual fallback trace. Four highlighted outputs represent a general warning, not physical vibration.*
+
+<details><summary>Earlier interface screenshots</summary>
 
 ![SoundScape Lab showing a computed back-motor command, direction checks, timing comparison and replay](docs/screenshots/simulator-review.jpg)
 
 *Actual scene explorer screenshot. Python computes the direction and policy decisions from synthetic microphone signals; class confidence is a scripted input and motor commands are visualized on screen.*
 
 ![Final review checklist with five computed scene checks and evidence export](docs/screenshots/simulator-checklist.jpg)
+
+</details>
 
 ```powershell
 python python/run_simulator_experiment.py --suite quick --seeds 2
@@ -103,12 +142,27 @@ This creates new timestamped results under `results/simulation/`, preserving the
 
 *Saved full acoustic stress-suite run: baseline wrong-direction alerts 36.9%, DEDA 11.2%; both missed or late 35.0%. General first warnings account for 67.1% of detected DEDA events. These use synthetic class inputs and default thresholds, so they belong to a separate experiment from the benchmark above.*
 
+### Wokwi virtual device demonstration
+
+Open the [Wokwi guide](wokwi/README.md), then copy the six files from [wokwi/sketch](wokwi/sketch) into a new ESP32 project. The OLED explains actual C-policy decisions; five buttons select scenarios and LEDs illustrate directional or general output patterns. Prepared observations are replayed through the policy; Wokwi does not listen to sounds or run the full acoustic/classification pipeline. Host checks match the five Python cases. The upgraded replay/display sketch compiles for ESP32, which does not establish physical resource, timing or energy feasibility.
+
+### Reproduce the expanded numerical study
+
+```powershell
+python -m pip install -r requirements-study.txt
+python python/final_simulation_study.py --workers 4
+python python/supplement_simulation_study.py
+python python/test_final_study.py
+```
+
+Use the fixed versions and seed partitions documented with the [results](results/final_simulation_study/README.md). Browser and Wokwi examples use default demo thresholds; the study uses separately frozen thresholds. Do not pool their outcomes.
+
 ### Original research scripts
 
 Requires Python ≥ 3.10, a C compiler and `make`.
 
 ```bash
-git clone https://github.com/<owner>/soundscape-band.git
+git clone https://github.com/rizzit17/soundscape-band.git
 cd soundscape-band
 pip install -r requirements.txt
 

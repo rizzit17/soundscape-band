@@ -2,4 +2,6 @@
     <item name="listen_start" type="id"/>
     <item name="listen_stop" type="id"/>
     <item name="listen_status" type="id"/>
+    <item name="vibration_test" type="id"/>
+    <item name="vibration_status" type="id"/>
 </resources>

@@ -2,16 +2,22 @@ package org.soundscape.band;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.media.AudioFormat;
+import android.media.AudioAttributes;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.os.VibratorManager;
+import android.os.VibrationAttributes;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.*;
 import com.google.mediapipe.tasks.audio.audioclassifier.AudioClassifier;
@@ -29,7 +35,8 @@ public class MainActivity extends Activity {
     private Button start, stop, export, correct, incorrect;
     private Spinner expected;
     private SeekBar sensitivity;
-    private Switch haptics;
+    private Switch haptics, confirmSound;
+    private TextView alertState, vibrationStatus;
     private volatile boolean running;
     private volatile AudioRecord recorder;
     private volatile boolean vibration = true;
@@ -57,6 +64,18 @@ public class MainActivity extends Activity {
         detection = addText(layout,"Waiting for sound",28,INK);
         details = addText(layout,"Direction: unavailable on this prototype",14,INK);
         top = addText(layout,"Top model labels will appear here.",15,INK);
+        alertState = addText(layout,"Alerts are for horns, sirens, reversing beeps and shouting.",15,GREEN);
+        vibrationStatus = addText(layout,"Vibration: " + (phoneVibrator()!=null && phoneVibrator().hasVibrator() ? "motor available — tap Test vibration" : "no vibration motor available"),14,INK);
+        vibrationStatus.setId(R.id.vibration_status);
+        Button motorTest = button(layout,"Test vibration (no sound needed)",v -> {
+            boolean sent = vibrate(1);
+            if(sent) vibrationStatus.setText("Test vibration requested. If you felt nothing, check phone vibration intensity and Do Not Disturb in Sound settings.");
+        });
+        motorTest.setId(R.id.vibration_test);
+        button(layout,"Open phone sound settings",v -> {
+            try { startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS)); }
+            catch(android.content.ActivityNotFoundException e) { vibrationStatus.setText("Open your phone's Sound & vibration settings manually."); }
+        });
         addText(layout,"Expected sound for this session",16,INK);
         expected = new Spinner(this);
         String[] options = {"Unlabelled exploration", "Horn", "Siren", "Reversing beeps", "Shouting", "Other / uncertain"};
@@ -69,6 +88,8 @@ public class MainActivity extends Activity {
         });
         haptics = new Switch(this); haptics.setText("Vibration alerts"); haptics.setChecked(true); layout.addView(haptics);
         haptics.setOnCheckedChangeListener((b,checked) -> vibration = checked);
+        confirmSound = new Switch(this); confirmSound.setText("Require two matching windows (slower, fewer brief alerts)");
+        confirmSound.setChecked(false); layout.addView(confirmSound);
         start = button(layout,"Start listening",v -> begin());
         start.setId(R.id.listen_start);
         stop = button(layout,"Stop listening",v -> stopListening()); stop.setEnabled(false);
@@ -84,7 +105,7 @@ public class MainActivity extends Activity {
         addText(layout,"How to test",21,INK);
         addText(layout,"1. Choose the sound you will play from another device.\n2. Start listening and play 10–15 seconds at a comfortable volume.\n3. Stop, then repeat with other sounds and ordinary background noise.\n4. Export the CSV for your project evaluation.",15,INK);
         addText(layout,"What this validates",21,INK);
-        addText(layout,"Sound recognition and phone vibration only. Each window contains 975 ms of mono audio; alerts require two consecutive matching windows and have a 3-second cooldown. Scores are model scores, not calibrated probabilities. This is a separate phone policy, not directional DEDA.\n\nHorn: two pulses · Siren: one long pulse · Reversing beeps: three short pulses · Shouting: short–long.\n\nThe app stops listening when you leave it. It does not measure source angle, four-motor feedback, or the band's 300 ms target. Do not rely on this prototype as a safety alarm.",14,INK);
+        addText(layout,"Sound recognition and phone vibration only. Each window contains 975 ms of mono audio. By default, one qualifying window requests an alert, followed by a 3-second cooldown. Enable two-window confirmation for more persistence. Other model labels can appear without triggering these four target alerts. Scores are model scores, not calibrated probabilities. This is a separate phone policy, not directional DEDA.\n\nHorn: two pulses · Siren: one long pulse · Reversing beeps: three short pulses · Shouting: short–long. Android sound settings and Do Not Disturb can suppress vibration; the app reports requests, not confirmation that the motor moved.\n\nThe app stops listening when you leave it. It does not measure source angle, four-motor feedback, or the band's 300 ms target. Do not rely on this prototype as a safety alarm.",14,INK);
     }
     private TextView addText(LinearLayout parent,String text,int size,int color) {
         TextView t = new TextView(this); t.setText(text); t.setTextSize(size); t.setTextColor(color); t.setPadding(0,12,0,12); parent.addView(t); return t;
@@ -97,14 +118,16 @@ public class MainActivity extends Activity {
         if (running || !start.isEnabled()) return;
         final float threshold = (sensitivity.getProgress()+10)/100f;
         final int truth = expected.getSelectedItemPosition()-1;
+        final int requiredWindows = confirmSound.isChecked() ? 2 : 1;
         running = true; windows=0; matching=0; alerts=0; latestId=0;
         session=UUID.randomUUID().toString();
         start.setEnabled(false); stop.setEnabled(true); sensitivity.setEnabled(false); expected.setEnabled(false); export.setEnabled(false);
+        confirmSound.setEnabled(false);
         correct.setEnabled(false); incorrect.setEnabled(false);
         status.setText("Loading offline model…");
-        new Thread(() -> listen(threshold,truth),"SoundScape-audio").start();
+        new Thread(() -> listen(threshold,truth,requiredWindows),"SoundScape-audio").start();
     }
-    private void listen(float threshold,int truth) {
+    private void listen(float threshold,int truth,int requiredWindows) {
         AudioClassifier classifier=null; AudioRecord local=null;
         String failure=null;
         try {
@@ -121,7 +144,8 @@ public class MainActivity extends Activity {
             if (!running) return;
             local.startRecording();
             AudioData data=AudioData.create(AudioData.AudioDataFormat.builder().setNumOfChannels(1).setSampleRate(16000).build(),15600);
-            AlertPolicy policy=new AlertPolicy(); float[] samples=new float[15600];
+            AlertPolicy policy=new AlertPolicy(requiredWindows); float[] samples=new float[15600];
+            append("config,"+session+","+System.currentTimeMillis()+",,,,,,,,,app=0.2;required_windows="+requiredWindows+";cooldown_ms=3000\n");
             long started=SystemClock.elapsedRealtime();
             while(running) {
                 int filled=0;
@@ -142,6 +166,7 @@ public class MainActivity extends Activity {
                 float score=scores[best]; int detected=score>=threshold?best:4;
                 long elapsed=SystemClock.elapsedRealtime()-started;
                 boolean alert=policy.update(detected,score,threshold,elapsed);
+                final String alertMessage=policy.status();
                 StringBuilder labels=new StringBuilder();
                 for(int i=0;i<Math.min(5,categories.size());i++) { Category c=categories.get(i); labels.append(String.format(Locale.US,"%s  %.2f\n",c.categoryName(),c.score())); }
                 final String labelText=labels.toString(); final int group=detected;
@@ -154,6 +179,7 @@ public class MainActivity extends Activity {
                     detection.setText(AlertPolicy.GROUPS[group]);
                     details.setText(String.format(Locale.US,"Target score %.2f · inference %d ms\nInput %.0f dBFS · direction unavailable",score,inference,db));
                     top.setText(labelText); correct.setEnabled(true); incorrect.setEnabled(true);
+                    alertState.setText(alertMessage + (vibration ? "" : " · vibration switch is off"));
                     counts.setText("Session: "+windows+" windows · "+alerts+" alerts"+(truth<0?"":"\nExpected-class matches: "+matching+"/"+windows+" (window-level)"));
                     if(alert && vibration) vibrate(group);
                 });
@@ -164,17 +190,36 @@ public class MainActivity extends Activity {
             if(local!=null) { try { local.stop(); } catch(Exception ignored) {} local.release(); }
             if(classifier!=null) classifier.close();
             final String message=failure;
-            runOnUiThread(() -> { start.setEnabled(true); stop.setEnabled(false); sensitivity.setEnabled(true); expected.setEnabled(true); export.setEnabled(true); status.setText(message==null?"Stopped · microphone off":"Could not listen: "+message); });
+            runOnUiThread(() -> { start.setEnabled(true); stop.setEnabled(false); sensitivity.setEnabled(true); expected.setEnabled(true); export.setEnabled(true); confirmSound.setEnabled(true); status.setText(message==null?"Stopped · microphone off":"Could not listen: "+message); });
         }
     }
     private void stopListening() {
         running=false; AudioRecord r=recorder;
         if(r!=null) try { r.stop(); } catch(Exception ignored) {}
-        ((Vibrator)getSystemService(VIBRATOR_SERVICE)).cancel();
+        Vibrator motor=phoneVibrator(); if(motor!=null) motor.cancel();
     }
-    private void vibrate(int group) {
-        long[][] patterns={{0,180,120,180},{0,650},{0,90,100,90,100,90},{0,100,120,400}};
-        ((Vibrator)getSystemService(VIBRATOR_SERVICE)).vibrate(VibrationEffect.createWaveform(patterns[group],-1));
+    private Vibrator phoneVibrator() {
+        if(Build.VERSION.SDK_INT>=31) {
+            VibratorManager manager=getSystemService(VibratorManager.class);
+            if(manager!=null) return manager.getDefaultVibrator();
+        }
+        return (Vibrator)getSystemService(VIBRATOR_SERVICE);
+    }
+    private boolean vibrate(int group) {
+        Vibrator motor=phoneVibrator();
+        if(motor==null || !motor.hasVibrator()) { vibrationStatus.setText("No vibration motor is available on this device."); return false; }
+        long[][] patterns={{0,300,160,300},{0,800},{0,180,120,180,120,180},{0,180,150,500}};
+        long[] timing=patterns[group]; int[] amplitudes=new int[timing.length];
+        for(int i=1;i<amplitudes.length;i+=2) amplitudes[i]=255;
+        try {
+            VibrationEffect effect=VibrationEffect.createWaveform(timing,amplitudes,-1);
+            if(Build.VERSION.SDK_INT>=33) motor.vibrate(effect,new VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_NOTIFICATION).build());
+            else motor.vibrate(effect,new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+            NotificationManager notifications=getSystemService(NotificationManager.class);
+            boolean dnd=notifications!=null && notifications.getCurrentInterruptionFilter()!=NotificationManager.INTERRUPTION_FILTER_ALL;
+            vibrationStatus.setText("Vibration requested: "+AlertPolicy.GROUPS[group]+(dnd?" · Do Not Disturb may suppress it":" · check phone settings if you feel nothing"));
+            return true;
+        } catch(RuntimeException e) { vibrationStatus.setText("Vibration request failed: "+e.getMessage()); return false; }
     }
     private void append(String row) throws IOException {
         synchronized(logLock) {

@@ -2,16 +2,13 @@
  * DEDA - Dual-Evidence Deadline Alerting (provisional name)
  * Embedded-oriented reference implementation for SoundScape Band.
  *
- * STATUS: compiled and tested on a HOST PC only, against the Python
- * reference on synthetic streams (tests/test_c_equivalence.py).
- * NOT yet compiled for or measured on RP2040 / ESP32.
+ * STATUS: host equivalence checks on synthetic streams; the supplementary
+ * Wokwi prepared-input replay sketch also compiles for ESP32.
+ * No physical target-board or complete audio-pipeline validation is claimed.
  *
- * Design rules: no dynamic allocation, fixed-size state, O(1) work per
- * window (independent of stream length), no recursion.
- * Arithmetic: DEDA_REAL defaults to float (ESP32 has an FPU; the RP2040 uses
- * its optimised ROM soft-float). The decision core runs once per hop
- * (~15 times/s) with a few hundred operations, so float is not a bottleneck;
- * integer-only arithmetic is used where it matters (audio, see doa_gcc.c).
+ * Design: no dynamic allocation, fixed-size policy state, bounded work per
+ * window and no recursion. DEDA_REAL defaults to float. Full-pipeline
+ * execution time, peak memory, energy and physical motor latency are unmeasured.
  */
 #ifndef DEDA_H
 #define DEDA_H

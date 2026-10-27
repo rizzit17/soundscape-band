@@ -1,0 +1,364 @@
+{
+  "version": 1,
+  "author": "SoundScape team",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": 20,
+      "left": -270,
+      "attrs": {}
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "oled",
+      "top": -110,
+      "left": -265,
+      "attrs": {
+        "i2cAddress": "0x3c"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "front",
+      "top": -100,
+      "left": 100,
+      "attrs": {
+        "color": "green",
+        "label": "Front motor"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_front",
+      "top": -50,
+      "left": 100,
+      "attrs": {
+        "value": "330"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "right",
+      "top": 20,
+      "left": 250,
+      "attrs": {
+        "color": "blue",
+        "label": "Right motor"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_right",
+      "top": 70,
+      "left": 250,
+      "attrs": {
+        "value": "330"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "back",
+      "top": 150,
+      "left": 100,
+      "attrs": {
+        "color": "red",
+        "label": "Back motor"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_back",
+      "top": 200,
+      "left": 100,
+      "attrs": {
+        "value": "330"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "left",
+      "top": 20,
+      "left": -40,
+      "attrs": {
+        "color": "orange",
+        "label": "Left motor"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_left",
+      "top": 70,
+      "left": -40,
+      "attrs": {
+        "value": "330"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn0",
+      "top": 300,
+      "left": -260,
+      "attrs": {
+        "color": "green",
+        "label": "1 HORN",
+        "key": "1"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 300,
+      "left": -115,
+      "attrs": {
+        "color": "blue",
+        "label": "2 SIREN",
+        "key": "2"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 300,
+      "left": 30,
+      "attrs": {
+        "color": "yellow",
+        "label": "3 NO DIRECTION",
+        "key": "3"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": 300,
+      "left": 175,
+      "attrs": {
+        "color": "orange",
+        "label": "4 UNCERTAIN",
+        "key": "4"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn4",
+      "top": 300,
+      "left": 320,
+      "attrs": {
+        "color": "gray",
+        "label": "5 AMBIENT",
+        "key": "5"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "title",
+      "top": -190,
+      "left": -260,
+      "attrs": {
+        "text": "SOUNDSCAPE | DEDA DECISION LAB"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "wearer",
+      "top": 50,
+      "left": 90,
+      "attrs": {
+        "text": "WEARER"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "caption",
+      "top": 420,
+      "left": -260,
+      "attrs": {
+        "text": "Prepared synthetic inputs | LEDs represent vibration commands"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "controls",
+      "top": 255,
+      "left": -260,
+      "attrs": {
+        "text": "SELECT A SCENARIO BELOW"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "esp:TX0",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX0",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "oled:SDA",
+      "esp:D23",
+      "blue",
+      []
+    ],
+    [
+      "oled:SCL",
+      "esp:D22",
+      "yellow",
+      []
+    ],
+    [
+      "oled:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "oled:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "esp:D18",
+      "r_front:1",
+      "green",
+      []
+    ],
+    [
+      "r_front:2",
+      "front:A",
+      "green",
+      []
+    ],
+    [
+      "front:C",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "esp:D19",
+      "r_right:1",
+      "blue",
+      []
+    ],
+    [
+      "r_right:2",
+      "right:A",
+      "blue",
+      []
+    ],
+    [
+      "right:C",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "esp:D21",
+      "r_back:1",
+      "red",
+      []
+    ],
+    [
+      "r_back:2",
+      "back:A",
+      "red",
+      []
+    ],
+    [
+      "back:C",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "esp:D4",
+      "r_left:1",
+      "orange",
+      []
+    ],
+    [
+      "r_left:2",
+      "left:A",
+      "orange",
+      []
+    ],
+    [
+      "left:C",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "btn0:1.l",
+      "esp:D13",
+      "purple",
+      []
+    ],
+    [
+      "btn0:2.l",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "btn1:1.l",
+      "esp:D14",
+      "purple",
+      []
+    ],
+    [
+      "btn1:2.l",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "btn2:1.l",
+      "esp:D25",
+      "purple",
+      []
+    ],
+    [
+      "btn2:2.l",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "btn3:1.l",
+      "esp:D26",
+      "purple",
+      []
+    ],
+    [
+      "btn3:2.l",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "btn4:1.l",
+      "esp:D27",
+      "purple",
+      []
+    ],
+    [
+      "btn4:2.l",
+      "esp:GND.2",
+      "black",
+      []
+    ]
+  ],
+  "serialMonitor": {
+    "display": "always",
+    "newline": "lf"
+  }
+}

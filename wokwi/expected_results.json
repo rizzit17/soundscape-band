@@ -1,0 +1,119 @@
+[
+  {
+    "name": "Horn behind",
+    "options": {
+      "sound": "horn",
+      "condition": "clean",
+      "angle": 180.0,
+      "snr_db": 20.0,
+      "confidence": 0.95,
+      "seed": 7,
+      "active_frac": 0.25,
+      "event_ms": 1024
+    },
+    "onset_ms": 192.0,
+    "alerts": [
+      {
+        "t_ms": 320.0,
+        "kind": "DIR",
+        "sound": "horn",
+        "cls": 0,
+        "motors": 4,
+        "motor_names": [
+          "Back"
+        ],
+        "theta": 183.10136638439445,
+        "evidence_index": 1
+      }
+    ]
+  },
+  {
+    "name": "Siren left",
+    "options": {
+      "sound": "siren",
+      "condition": "clean",
+      "angle": 270.0,
+      "snr_db": 20.0,
+      "confidence": 0.95,
+      "seed": 7,
+      "active_frac": 0.25,
+      "event_ms": 1024
+    },
+    "onset_ms": 192.0,
+    "alerts": [
+      {
+        "t_ms": 256.0,
+        "kind": "DIR",
+        "sound": "siren",
+        "cls": 1,
+        "motors": 8,
+        "motor_names": [
+          "Left"
+        ],
+        "theta": 271.54672995182534,
+        "evidence_index": 0
+      }
+    ]
+  },
+  {
+    "name": "Direction unavailable",
+    "options": {
+      "sound": "horn",
+      "condition": "dropout",
+      "angle": 180.0,
+      "snr_db": 20.0,
+      "confidence": 0.95,
+      "seed": 7,
+      "active_frac": 0.25,
+      "event_ms": 1024
+    },
+    "onset_ms": 192.0,
+    "alerts": [
+      {
+        "t_ms": 384.0,
+        "kind": "NONDIR",
+        "sound": "horn",
+        "cls": 0,
+        "motors": 15,
+        "motor_names": [
+          "Front",
+          "Right",
+          "Back",
+          "Left"
+        ],
+        "theta": null,
+        "evidence_index": 2
+      }
+    ]
+  },
+  {
+    "name": "Uncertain class",
+    "options": {
+      "sound": "horn",
+      "condition": "clean",
+      "angle": 180.0,
+      "snr_db": 20.0,
+      "confidence": 0.3,
+      "seed": 7,
+      "active_frac": 0.25,
+      "event_ms": 1024
+    },
+    "onset_ms": 192.0,
+    "alerts": []
+  },
+  {
+    "name": "Ambient only",
+    "options": {
+      "sound": "ambient",
+      "condition": "clean",
+      "angle": 180.0,
+      "snr_db": 20.0,
+      "confidence": 0.95,
+      "seed": 7,
+      "active_frac": 0.25,
+      "event_ms": 1024
+    },
+    "onset_ms": 192.0,
+    "alerts": []
+  }
+]

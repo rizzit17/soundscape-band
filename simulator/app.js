@@ -73,7 +73,7 @@
   function setBusy(kind = "") {
     busy = kind;
     $("scene-fields").disabled = Boolean(kind) || !connected;
-    ["run","reset","run-experiment","run-review","suite","seeds"].forEach(id => $(id).disabled = Boolean(kind) || !connected);
+    ["run","reset","run-experiment","run-review","suite","seeds","guided-start","guided-fallback","listen-stage","next-demo"].forEach(id => $(id).disabled = Boolean(kind) || !connected);
     document.querySelectorAll("[data-preset],[data-restore]").forEach(b => b.disabled = Boolean(kind) || !connected);
     document.body.classList.toggle("computing",kind === "scene");
     labels();
@@ -104,7 +104,73 @@
     else { const {csv,...rest}=data; download(JSON.stringify(rest,null,2),`${prefix}-${stamp}.json`,"application/json"); }
   }
   function cells(row, values) { values.forEach(v => {const td=document.createElement("td");td.textContent=v;row.append(td);}); }
+  let audioContext = null, audioNode = null, audioGain = null, audioBuffer = null;
+  let audioEnabled = false, audioAnchor = 0, modelAnchor = 0;
+  function silenceAudio() {
+    if (audioNode) { try { audioNode.stop(); } catch (_) {} audioNode.disconnect(); audioNode = null; }
+    if (audioGain) { audioGain.disconnect(); audioGain = null; }
+  }
+  async function enableAudio() {
+    try {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio) throw new Error("Audio playback is unavailable in this browser.");
+      if (!audioContext) audioContext = new Audio();
+      await audioContext.resume();
+      audioEnabled = true;
+      $("audio-toggle").setAttribute("aria-pressed","true");text("audio-toggle","Sound on");text("stage-mute","Sound on");$("stage-mute").setAttribute("aria-pressed","true");
+      text("audio-status","Ready. Audio follows replay, pause and seek.");
+      return true;
+    } catch (e) { text("audio-status",e.message + " Visual replay still works."); return false; }
+  }
+  function startAudio() {
+    silenceAudio();
+    if (!audioEnabled || !audioContext || !result?.audio) return;
+    try {
+      if (!audioBuffer) {
+        const raw = atob(result.audio.data), bytes = Uint8Array.from(raw,c=>c.charCodeAt(0));
+        const view = new DataView(bytes.buffer);
+        audioBuffer = audioContext.createBuffer(1,bytes.length/2,result.audio.sample_rate);
+        const samples = audioBuffer.getChannelData(0);
+        for(let i=0;i<samples.length;i++) samples[i]=view.getInt16(i*2,true)/32768;
+      }
+      if (replayTime/1000 >= audioBuffer.duration) return;
+      audioNode=audioContext.createBufferSource();audioNode.buffer=audioBuffer;
+      audioNode.playbackRate.value=Number($("speed").value);
+      audioGain=audioContext.createGain();audioGain.gain.value=Number($("volume").value)/100;
+      audioNode.connect(audioGain);audioGain.connect(audioContext.destination);
+      audioAnchor=audioContext.currentTime;modelAnchor=replayTime;
+      audioNode.start(0,replayTime/1000);
+      text("audio-status","Playing the computed Mic 1 signal with its noise and reflections.");
+    } catch (_) { silenceAudio();text("audio-status","Audio could not play. Visual replay remains available."); }
+  }
+  function renderStory(f,a) {
+    const active=Boolean(f?.source_active), score=f?Math.max(...f.probs.slice(0,4)):0;
+    text("story-class",f?`${Math.round(score*100)}%`:"Awaiting input");
+    text("story-direction",!f?"Awaiting window":!f.direction_available?"Unavailable":f.reliable?"Checks pass":"Checks fail");
+    let step="input", title="Waiting for the sound to begin.", body="The three virtual microphones include background noise. A direction estimate alone does not justify an alert.";
+    if(a) {
+      step="alert";
+      if(a.kind==="NONDIR") {title="The event is accepted. The direction is withheld.";body="DEDA could not establish reliable direction evidence within its decision policy. All four motor commands give a general warning instead of pointing somewhere unsupported.";}
+      else {title=`A ${soundNames[result.options.sound].toLowerCase()} warning points ${a.motor_names.join(" and ").toLowerCase()}.`;body="Class evidence and accumulated direction evidence supported this command. Passing checks can still allow an incorrect but plausible direction; compare the outcome above.";}
+    } else if(f?.decision.includes("Class accepted")) {step="direction";title="The sound is accepted. Its direction needs more evidence.";body="This is DEDA's separate decision: accepting an event does not automatically accept its direction. The policy waits within a bounded decision budget.";}
+    else if(f?.decision.includes("Accumulating")) {step="class";title="Evidence is building across analysis windows.";body="DEDA accumulates class evidence while checking whether direction observations agree. It does not immediately turn every raw angle into a warning.";}
+    else if(active && result.options.sound!=="ambient") {step="class";title="You can hear a sound. The class evidence is insufficient.";body="Audibility and classification confidence are different. Here the score is a scripted input; the policy can withhold an alert, which also means an important event can be missed.";}
+    else if(result.options.sound==="ambient") {title="Background sound does not trigger this control case.";body="The input is scripted as ambient. This demonstrates the policy's no-alert path, not measured real-world false-alarm performance.";}
+    else if(replayTime>=result.offset_ms) {title="The event ended without an accepted warning.";body="Inspect the class input and direction checks to understand the miss. Withholding an uncertain alert has a cost as well as a benefit.";}
+    text("story-step",`LIVE EXPLANATION / ${Math.round(replayTime)} MODEL MS`);text("story-title",title);text("story-body",body);
+    document.querySelectorAll("[data-stage]").forEach(el=>el.classList.toggle("active",el.dataset.stage===step));
+    document.body.classList.toggle("source-sounding",active && playing);
+  }
+  async function guidedScene(fallback=false) {
+    if(busy || !connected) return;
+    await enableAudio();
+    if(fallback) applySettings(presets.dropout);
+    const o=settings();
+    if(!result || signature(result.options)!==signature(o)) {const r=await runScene(o);if(!r)return;}
+    seek(0);$("scene-title").closest(".stage").scrollIntoView({behavior:"instant",block:"start"});togglePlay();
+  }
   function stopReplay() {
+    silenceAudio();if(audioEnabled)text("audio-status",replayTime>=result?.duration_ms?"Replay complete. Replay or select another scene.":"Playback paused. Sound resumes with replay.");document.body.classList.remove("replaying","source-sounding");
     playing=false; if(animationId!==null) cancelAnimationFrame(animationId); animationId=null; lastTick=0;
     text("play","Play"); $("play").setAttribute("aria-label","Play replay");
   }
@@ -118,6 +184,23 @@
       const y=h*(i+.5)/3;ctx.strokeStyle="#e4e9e2";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
       ctx.strokeStyle=["#176b50","#36949b","#8b9b68"][i];ctx.lineWidth=1.7;ctx.beginPath();
       values.forEach((v,k)=>{const x=k*w/Math.max(1,values.length-1),yy=y-v/peak*24;k?ctx.lineTo(x,yy):ctx.moveTo(x,yy);});ctx.stroke();
+    });
+  }
+  function renderComparison(f,a,b) {
+    [["baseline",b],["deda",a]].forEach(([key,alert])=>{
+      const other=key==="baseline"?"Fixed threshold + raw angle":"Separate class and direction evidence";
+      text("duel-"+key,alert?(alert.kind==="NONDIR"?"General warning":alert.motor_names.join(" + ")):"No warning yet");
+      text("duel-"+key+"-note",alert?`${alert.t_ms-result.onset_ms} ms after onset · ${alert.kind==="NONDIR"?"direction withheld":"direction commanded"}`:other);
+      $("duel-"+key).closest("article").classList.toggle("has-alert",Boolean(alert));
+    });
+    if(!a && f?.decision.includes("Class accepted"))text("duel-deda-note","Class accepted; waiting for direction evidence.");
+    const rows=$("class-evidence-bars").children;
+    ["Horn","Siren","Shout","Beep"].forEach((name,i)=>{
+      const score=f?.evidence[i]??0,row=rows[i],bounded=Math.max(-8,Math.min(8,score));
+      row.querySelector("strong").textContent=fmt(score,2);
+      const bar=row.querySelector("i");bar.style.width=`${Math.abs(bounded)/8*50}%`;
+      bar.style.left=bounded<0?`${50-Math.abs(bounded)/8*50}%`:"50%";
+      row.classList.toggle("negative",score<0);
     });
   }
   function renderReplay() {
@@ -134,7 +217,7 @@
     text("baseline-decision",b ? `${b.motor_names.join(" + ")} · ${b.t_ms} ms` : "No alert yet");
     document.querySelectorAll("#log tr.current").forEach(r=>r.classList.remove("current"));
     if(index>=0 && $("log").children[index]) $("log").children[index].classList.add("current");
-    const f=result.frames[index];
+    const f=result.frames[index];renderStory(f,a);renderComparison(f,a,b);
     if(!f) {
       text("estimated-value","—");badge("reliability-value","Before first window","");$("estimated-direction").style.display="none";
       text("decision","Waiting for the first analysis window");text("reason","Source onset is 192 ms on the simulated clock.");
@@ -161,16 +244,17 @@
   }
   function tick(now) {
     animationId=null;if(!playing||!result)return;
-    if(lastTick) replayTime+=(now-lastTick)*Number($("speed").value);lastTick=now;
+    if(audioNode) replayTime=modelAnchor+(audioContext.currentTime-audioAnchor)*1000*Number($("speed").value);
+    else if(lastTick) replayTime+=(now-lastTick)*Number($("speed").value);lastTick=now;
     if(replayTime>=result.duration_ms){replayTime=result.duration_ms;stopReplay();}
     renderReplay();if(playing)animationId=requestAnimationFrame(tick);
   }
   function togglePlay() {
     if(!result)return;if(playing){stopReplay();return;}if(replayTime>=result.duration_ms){replayTime=0;lastIndex=-2;}
-    playing=true;lastTick=0;text("play","Pause");$("play").setAttribute("aria-label","Pause replay");animationId=requestAnimationFrame(tick);
+    playing=true;document.body.classList.add("replaying");lastTick=0;startAudio();lastIndex=-2;text("play","Pause");$("play").setAttribute("aria-label","Pause replay");animationId=requestAnimationFrame(tick);
   }
   function showResult(r, remember = true) {
-    stopReplay();result=r;const m=r.deda,b=r.baseline;
+    stopReplay();audioBuffer=null;result=r;const m=r.deda,b=r.baseline;
     text("scene-title",`${soundNames[r.options.sound]} · ${r.options.sound==="ambient"?"ambient control":r.options.angle+"° · "+r.options.snr_db+" dB"}`);
     text("latency",!m.critical?"No event":m.detected?`${m.latency_ms} ms`:"No warning");
     text("latency-note",!m.critical?"Ambient control":!m.detected?"Critical event was not accepted":m.missed_or_late?"Later than 300 ms on the model clock":"Within 300 ms on the model clock");
@@ -183,8 +267,10 @@
     text("runtime",`Seed ${r.options.seed} · engine computation ${fmt(r.runtime_ms,0)} ms · no hardware timing`);
     $("source-range").style.left=`${r.onset_ms/r.duration_ms*100}%`;$("source-range").style.width=`${(r.offset_ms-r.onset_ms)/r.duration_ms*100}%`;$("source-range").style.right="auto";
     $("timeline").max=r.duration_ms;$("timeline").step=r.hop_ms;
-    ["play","next","previous","timeline","export-json","export-csv"].forEach(id=>$(id).disabled=false);
+    ["play","next","previous","timeline","export-json","export-csv","stage-pause"].forEach(id=>$(id).disabled=false);
     $("jump-alert").disabled=!r.alerts.some(a=>a.kind!=="UPDATE");
+    $("jump-onset").disabled=false;$("jump-end").disabled=false;
+    $("jump-baseline").disabled=!r.baseline_alerts.length;$("jump-deda").disabled=!r.alerts.length;
     $("log").replaceChildren();
     r.frames.forEach(f=>{
       const row=document.createElement("tr"),td=document.createElement("td"),button=document.createElement("button");
@@ -200,7 +286,7 @@
     if(!$("seed").checkValidity())$("seed").closest("details").open=true;
     if(!$("scene-form").reportValidity())return;
     stopReplay();setBusy("scene");status("run-status","Computing the microphone signals, direction and decision…");
-    try{const r=await request("/api/simulate",o);showResult(r);status("run-status",`${r.frames.length} computed windows · seed ${r.options.seed}. Paused at the first warning, when available.`);}
+    try{const r=await request("/api/simulate",o);showResult(r);status("run-status",`${r.frames.length} computed windows · seed ${r.options.seed}. Paused at the first warning, when available. Use Hear & watch to replay with sound.`);return r;}
     catch(e){status("run-status",e.message,true);}finally{setBusy();}
   }
   function renderHistory() {
@@ -267,7 +353,16 @@
   }
 
   $("scene-form").noValidate=true;
-  $("scene-form").addEventListener("submit",e=>{e.preventDefault();runScene();});
+  $("scene-form").addEventListener("submit",async e=>{
+    e.preventDefault();
+    if(busy || !connected)return;
+    // A user-triggered run should visibly replay, even when settings are unchanged.
+    if(audioEnabled && audioContext)await audioContext.resume().catch(()=>{});
+    const r=await runScene();
+    if(!r)return;
+    seek(0);$("scene-title").closest(".stage").scrollIntoView({behavior:"instant",block:"start"});togglePlay();
+    status("run-status",`${r.frames.length} computed windows · replay started from the beginning${audioEnabled?" with sound":" (sound muted)"}.`);
+  });
   $("scene-form").addEventListener("input",labels);$("scene-form").addEventListener("change",labels);
   $("reset").addEventListener("click",()=>{applySettings(defaults);status("run-status","Default settings restored. Run the scene to recompute.");});
   document.querySelectorAll("[data-angle]").forEach(b=>b.addEventListener("click",()=>{$("angle").value=b.dataset.angle;labels();}));
@@ -287,6 +382,36 @@
   $("run-review").addEventListener("click",runReview);$("review-table").addEventListener("click",e=>{const b=e.target.closest("[data-inspect]");if(b&&!busy){const r=reviewResults[Number(b.dataset.inspect)];applySettings(r.options);showResult(r,false);tab("demo");status("run-status","Inspecting the exact computed review-case trace.");window.scrollTo({top:0,behavior:"instant"});}});
   $("review-json").addEventListener("click",()=>exportData({schema_version:1,scope:"Synthetic scene checks, not recognition accuracy or hardware validation",created_utc:new Date().toISOString(),cases:reviewResults.map((r,i)=>({case:cases[i].name,expected:cases[i].expected,matched:reviewMatches(cases[i].key,r),result:r}))},"json","soundscape-review-evidence"));
   $("print-review").addEventListener("click",()=>window.print());$("reconnect").addEventListener("click",connect);
+  ["Horn","Siren","Shout","Beep"].forEach(name=>{
+    const row=document.createElement("div"),label=document.createElement("span"),track=document.createElement("div"),bar=document.createElement("i"),value=document.createElement("strong");
+    label.textContent=name;track.className="evidence-track";track.append(bar);value.textContent="0.00";row.append(label,track,value);$("class-evidence-bars").append(row);
+  });
+  $("presentation-toggle").addEventListener("click",()=>{
+    const active=document.body.classList.toggle("presentation-mode");
+    $("presentation-toggle").setAttribute("aria-pressed",String(active));text("presentation-toggle",active?"Exit presentation":"Presentation mode");
+    if(active)tab("demo");
+    if(active)$("scene-title").closest(".stage").scrollIntoView({behavior:"instant",block:"start"});
+  });
+  $("jump-onset").addEventListener("click",()=>seek(result.onset_ms));
+  $("jump-end").addEventListener("click",()=>seek(result.duration_ms));
+  $("jump-baseline").addEventListener("click",()=>seek(result.baseline_alerts[0].t_ms));
+  $("jump-deda").addEventListener("click",()=>seek(result.alerts[0].t_ms));
+  $("stage-pause").addEventListener("click",togglePlay);
+  $("stage-mute").addEventListener("click",()=>$("audio-toggle").click());
+  $("listen-stage").addEventListener("click",()=>guidedScene());
+  $("next-demo").addEventListener("click",()=>{
+    const keys=["horn","siren","dropout","weak","ambient"];
+    const current=keys.findIndex(k=>result && signature(presets[k])===signature(result.options));
+    applySettings(presets[keys[(current+1)%keys.length]]);guidedScene();
+  });
+  $("guided-start").addEventListener("click",()=>guidedScene());
+  $("guided-fallback").addEventListener("click",()=>guidedScene(true));
+  $("audio-toggle").addEventListener("click",async()=>{
+    if(audioEnabled){audioEnabled=false;silenceAudio();text("audio-toggle","Sound off");text("stage-mute","Sound off");$("stage-mute").setAttribute("aria-pressed","false");$("audio-toggle").setAttribute("aria-pressed","false");text("audio-status","Muted. Visual replay continues.");}
+    else if(await enableAudio()) {if(playing)startAudio();}
+  });
+  $("volume").addEventListener("input",()=>{text("volume-value",`${$("volume").value}%`);if(audioGain)audioGain.gain.setTargetAtTime(Number($("volume").value)/100,audioContext.currentTime,.02);});
+  $("speed").addEventListener("change",()=>{if(playing){lastTick=0;startAudio();}});
   document.addEventListener("visibilitychange",()=>{if(document.hidden)stopReplay();});
   renderHistory();renderReview();trialCount();waveforms(null);setBusy();connect();
 })();

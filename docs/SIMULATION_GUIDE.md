@@ -66,7 +66,7 @@ Use the preset buttons above the workspace. Each preset resets the seed, duratio
 | Ambient only | No alert | Scripted probabilities favor ambient; this does not measure classifier performance |
 | Competing sources | Inspect raw angles, reliability and both policies | Two sources can fool the reliability checks; do not promise that DEDA always selects the true source |
 
-Run a preset, then replay at 0.5× or pause and scrub the timeline. Inspect a window during the sound, not just the ambient tail. The source starts at 192 ms; the 1024 ms preset sound ends at 1216 ms.
+Run a preset, then replay at 0.25× or 0.5× or pause and scrub the timeline. Inspect a window during the sound, not just the ambient tail. The source starts at 192 ms; the 1024 ms preset sound ends at 1216 ms.
 
 The measured values on your machine may differ slightly with numerical library versions. They are calculated anew, not hardcoded expected results.
 
@@ -215,3 +215,10 @@ To extend the project later, add recorded source clips, a trained classifier wit
 | Different angle during the ambient tail | Noise has no true source direction; scrub to a window while the source is active |
 | The experiments do not match the paper | They are different experiments; use `run_synthetic.py` for the original decision-stream benchmark |
 | Share a public URL | This version is local; Python must be running on the demonstration computer |
+
+
+## Current audible and Wokwi demonstrations
+
+The [browser guide](../simulator/README.md) covers sound, volume, 0.25×–2× replay, presentation mode, live comparison, evidence bars and event jumps. Run scene recomputes and starts replay while preserving mute. Listen & replay enables audio. Audio is the generated Mic 1 channel, not a recording or recognition result. Model delay labels do not change into hardware timing measurements when replay speed changes.
+
+The optional [Wokwi guide](../wokwi/README.md) supplies a virtual ESP32 decision replay with OLED, buttons and LEDs. It runs C DEDA on prepared observations; it does not run GCC-PHAT or live sound recognition. Final [report](submission/SoundScape_Final_Report_Updated.docx) and [paper](submission/SoundScape_Final_Research_Paper_Updated.docx) distinguish these demos from the separate expanded benchmark.

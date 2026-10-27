@@ -138,3 +138,18 @@ def test_server_routes_validation_and_origin():
         server.shutdown()
         server.server_close()
         thread.join()
+
+def test_listening_audio_is_the_same_microphone_signal_as_trace():
+    import base64
+    import numpy as np
+    r = simulate(dict(condition='reflection', snr_db=0, seed=83))
+    audio = r['audio']
+    samples = np.frombuffer(base64.b64decode(audio['data']), dtype='<i2').astype(float) / 32767
+    assert len(samples) == r['sample_rate'] * r['duration_ms'] // 1000
+    assert audio['channels'] == 1
+    assert audio['sample_rate'] == 16000
+    assert np.max(np.abs(samples)) <= .851
+    for i, frame in enumerate(r['frames']):
+        expected = np.asarray(frame['waveform'][0]) * audio['normalization_gain']
+        np.testing.assert_allclose(samples[i*1024:(i+1)*1024:16], expected, atol=1/32767)
+    assert simulate(dict(seed=83), include_frames=False)['audio'] is None

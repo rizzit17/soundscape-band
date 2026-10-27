@@ -5,6 +5,7 @@ Reuses the repository's free-field array, GCC-PHAT and policy implementations.
 """
 from __future__ import annotations
 
+import base64
 import dataclasses
 import math
 import time
@@ -165,7 +166,18 @@ def simulate(raw: dict | None = None, *, include_frames=True) -> dict[str, Any]:
                                baseline_alerts=[alert_dict(a) for a in bnew],
                                waveform=frame[:, ::16].tolist()))
 
-    return dict(schema_version=1, note="Synthetic free-field audio; class probabilities are simulated inputs, not a trained classifier. No hardware measurements.",
+    # Listen to the very same noisy mic-1 samples used by the direction estimator.
+    # One uniform gain per clip preserves relative noise/event amplitude; no AGC.
+    audio = None
+    if include_frames:
+        peak = max(float(np.max(np.abs(channels[0]))), 1e-12)
+        pcm = np.round(channels[0] / peak * 0.85 * 32767).astype('<i2')
+        audio = dict(format='pcm_s16le', sample_rate=fs, channels=1,
+                     data=base64.b64encode(pcm.tobytes()).decode('ascii'),
+                     normalization_gain=0.85 / peak,
+                     note='Actual synthetic mic-1 samples, peak-normalized uniformly; mono, not spatial hearing or a real recording.')
+
+    return dict(audio=audio, schema_version=1, note="Synthetic free-field audio; class probabilities are simulated inputs, not a trained classifier. No hardware measurements.",
                 options=o, sample_rate=fs, hop_ms=64, onset_ms=onset, offset_ms=offset,
                 duration_ms=total_ms, processing_allowance_ms=cfg.proc_ms,
                 runtime_ms=round((time.perf_counter() - started) * 1000, 2),

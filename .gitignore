@@ -38,3 +38,6 @@ data/recordings/
 # OS
 .DS_Store
 Thumbs.db
+
+# Restricted temporary pytest directories
+python/pytest-cache-files-*/
