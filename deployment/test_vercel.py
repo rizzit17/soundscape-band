@@ -68,3 +68,14 @@ def test_hosted_ml_status_prediction_and_upload_boundary(hosted_url):
     for route,data,code in [('ml/train',{'action':'prepare'},404),('ml/predict',{'example_id':'../../private'},400),('ml/predict',{'example_id':item['id'],'virtual':{'angle':400}},400)]:
         with pytest.raises(HTTPError) as err:request(hosted_url+'/api/'+route,data)
         assert err.value.code==code
+
+@pytest.mark.skipif(not (ROOT/'models/esc50/model.npz').exists(),reason='Train real-data model first')
+def test_main_recording_scene_api_has_replay_audio_and_real_classes(hosted_url):
+    status=request(hosted_url+'/api/ml/status')
+    r=request(hosted_url+'/api/simulate-recording',dict(example_id=status['examples'][0]['id'],snr_db=80,angle=180))
+    assert r['mode']=='trained_recording_scene'
+    assert r['model_info']['prediction']=='dog'
+    assert r['deda']['first_alert']['motors']==4
+    assert r['frames'][0]['probs'][r['class_names'].index('dog')]>.5
+    assert 'p_dog' in r['csv'].splitlines()[0]
+    assert r['audio']['format']=='pcm_s16le'

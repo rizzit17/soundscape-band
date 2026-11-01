@@ -1,5 +1,7 @@
 # Browser listening demo
 
+**Current default:** Real recording + trained model runs directly in the main scene explorer. Select a recording/upload and press Run scene; learned recognition and computed virtual-array localization drive the wearer. [Instructions and boundaries](../docs/MAIN_MODEL_SIMULATION.md). The five-case walkthrough below describes **Scripted teaching cases** mode, which must be selected explicitly.
+
 Hosted version: **https://soundscape-simulation.vercel.app**. Open it directly; no terminal is needed. [Vercel details](../deployment/README.md).
 
 Run `Start-Simulator.cmd` from the repository root, or `python python/simulator_server.py`, then open http://127.0.0.1:8765. Restart an already-running Python server after updating, and refresh the browser.

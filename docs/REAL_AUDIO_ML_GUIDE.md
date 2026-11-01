@@ -1,6 +1,6 @@
 # Real-audio ML lab
 
-Open `/ml` from the browser simulation's **Real dataset ML lab** link.
+The normal homepage now uses the trained model directly in its wearer simulation. [Main-view walkthrough](MAIN_MODEL_SIMULATION.md). Open `/ml` for training, evaluation and diagnostics.
 
 ## What is implemented
 

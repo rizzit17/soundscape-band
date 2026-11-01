@@ -29,6 +29,8 @@ The **300 ms setting is a model target**, not a guaranteed real-device response 
 
 ## 3. How does the browser simulation work?
 
+**Current main mode:** Real recording + trained model. A selected recording or WAV upload drives recognition, virtual microphones, computed direction and the same wearer/motor display. Class scores are no longer supplied in this mode. Choose Scripted teaching cases to demonstrate the original examples described below. [Short main-mode instructions](MAIN_MODEL_SIMULATION.md).
+
 [Open the browser simulation](https://soundscape-simulation.vercel.app/)
 
 ```text

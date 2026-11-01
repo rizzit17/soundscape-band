@@ -16,18 +16,18 @@ def status():
     with LOCK:j=dict(JOB)
     return dict(**model_status(),job=j,examples=examples())
 
-def predict(raw):
+def predict(raw, *, include_scene=False):
     if not model_status()["ready"]:raise ValueError("No complete model/evaluation bundle is ready. Finish local training first.")
     if 'example_id' in raw:
         data,item=example_data(raw['example_id'])
-        result=classify_audio(data,truth=item['label'],**({'virtual':raw['virtual']} if 'virtual' in raw else {}));result['example']=item
+        result=classify_audio(data,truth=item['label'],**dict(({'virtual':raw['virtual']} if 'virtual' in raw else {}),**({'include_scene':True} if include_scene else {})));result['example']=item
         result['audio_b64']=result.get('audio_b64') or base64.b64encode(data).decode()
         return result
     value=raw.get('audio_b64')
     if not isinstance(value,str) or len(value)>4_000_000:raise ValueError('Provide a PCM WAV under 3 MB')
     try:data=base64.b64decode(value,validate=True)
     except Exception as e:raise ValueError('Invalid base64 WAV') from e
-    return classify_audio(data,**({'virtual':raw['virtual']} if 'virtual' in raw else {}))  # Never accept user-supplied truth as a prediction input.
+    return classify_audio(data,**dict(({'virtual':raw['virtual']} if 'virtual' in raw else {}),**({'include_scene':True} if include_scene else {})))  # Never accept user-supplied truth as a prediction input.
 
 def start_job(action):
     if action not in ('prepare','train','evaluate'):raise ValueError('Action must be prepare, train or evaluate')

@@ -46,15 +46,20 @@ class handler(BaseHTTPRequestHandler):
         host = self.headers.get('Host', '')
         if origin and (urlsplit(origin).netloc != host or urlsplit(origin).scheme not in ('http','https')):
             return self.reply(403,json.dumps(dict(error='Use the simulation page on this host.')))
-        if self.route() not in ('simulate','experiment','ml/predict'):
+        if self.route() not in ('simulate','experiment','ml/predict','simulate-recording'):
             return self.reply(404,json.dumps(dict(error='Not found')))
         try:
             size=int(self.headers.get('Content-Length','0'))
-            if not 0 < size <= (4_100_000 if self.route()=='ml/predict' else 4096):
+            if not 0 < size <= (4_100_000 if self.route() in ('ml/predict','simulate-recording') else 4096):
                 raise ValueError('WAV requests must be under 4.1 MB; scene requests under 4 KB')
             raw=json.loads(self.rfile.read(size))
             if not isinstance(raw,dict):
                 raise ValueError('Request must be a JSON object')
+            if self.route()=='simulate-recording':
+                from soundscape_ml.scene import recording_scene
+                result=recording_scene(raw)
+                result['csv']=csv_result(result)
+                return self.reply(200,json.dumps(result,allow_nan=False))
             if self.route()=='ml/predict':
                 from soundscape_ml.service import predict
                 return self.reply(200,json.dumps(predict(raw),allow_nan=False))

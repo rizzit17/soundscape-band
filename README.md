@@ -6,7 +6,9 @@ SoundScape Band investigates DEDA (Dual-Evidence Deadline Alerting), a policy th
 
 ## Real dataset training and testing
 
-The browser now includes a **Real dataset ML lab** at `/ml`: train a compact 50-class classifier on ESC-50, evaluate a separate test fold, inspect mistakes, and upload WAVs for actual model predictions. Training runs locally; the exported NumPy model can run on the hosted site. This mode uses real audio recognition with non-directional DEDA commands, separate from the scripted acoustic scenes and historical paper results. [Setup, protocol and limitations](docs/REAL_AUDIO_ML_GUIDE.md).
+The main simulation now defaults to **Real recording + trained model**: a dataset recording or WAV upload drives the existing wearer, GCC-PHAT direction display, evidence trace and DEDA motor commands. Class scores are learned predictions; the source angle defines virtual ground truth. [Main-view walkthrough](docs/MAIN_MODEL_SIMULATION.md).
+
+The **Real dataset ML lab** at `/ml` provides training and diagnostics: train a compact 50-class classifier on ESC-50, evaluate a separate test fold, inspect mistakes, and upload WAVs for actual model predictions. Training runs locally; the exported NumPy model can run on the hosted site. This mode uses real audio recognition with non-directional DEDA commands, separate from the scripted acoustic scenes and historical paper results. [Setup, protocol and limitations](docs/REAL_AUDIO_ML_GUIDE.md).
 
 ## Open the live simulation
 

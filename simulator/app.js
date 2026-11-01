@@ -23,7 +23,7 @@
   if (typeof module !== "undefined" && module.exports) { module.exports = {frameIndex, outcomeText, reviewMatches}; return; }
 
   const $ = id => document.getElementById(id);
-  const soundNames = {horn:"Vehicle horn", siren:"Siren", shout:"Shout-like noise", beep:"Reversing beep", ambient:"Ambient noise", ambulance:"Ambulance siren", truck_horn:"Truck air horn", smoke_alarm:"Smoke alarm", dog_bark:"Dog barking", doorbell:"Doorbell", glass_break:"Glass breaking", rain:"Rain"};
+  const soundNames = {recording:"Real recording",horn:"Vehicle horn", siren:"Siren", shout:"Shout-like noise", beep:"Reversing beep", ambient:"Ambient noise", ambulance:"Ambulance siren", truck_horn:"Truck air horn", smoke_alarm:"Smoke alarm", dog_bark:"Dog barking", doorbell:"Doorbell", glass_break:"Glass breaking", rain:"Rain"};
   const policyClasses = {horn:"Horn",siren:"Siren",shout:"Shout",beep:"Beep",ambient:"Ambient",ambulance:"Ambulance",truck_horn:"Truck horn",smoke_alarm:"Smoke alarm",dog_bark:"Dog barking",doorbell:"Doorbell",glass_break:"Glass breaking",rain:"Rain"};
   const conditionNames = {clean:"Single source", interference:"Competing sources", reflection:"Reflection surrogate", clock_fault:"Timing fault", dropout:"Direction dropout"};
   const motorNames = ["Front", "Right", "Back", "Left"];
@@ -63,23 +63,38 @@
   try { const saved = sessionStorage.getItem("soundscape-job"); if (/^[a-f0-9]{32}$/.test(saved || "")) jobId = saved; } catch (_) { /* Optional recovery only. */ }
 
   function text(id, value) { $(id).textContent = value; }
+  let modelExamples=[],recordingUpload=null;
+  const modelMode=()=>$("recognition-mode").value==="model";
+  const className=i=>result?.class_names?result.class_names[i].replaceAll("_"," "):["Horn","Siren","Shout","Beep","Ambient"][i];
   function settings() {
-    return {sound:$("sound").value,angle:Number($("angle").value),snr_db:Number($("snr").value),condition:$("condition").value,
+    const o={sound:$("sound").value,angle:Number($("angle").value),snr_db:Number($("snr").value),condition:$("condition").value,
       confidence:Number($("confidence").value)/100,seed:Number($("seed").value),active_frac:Number($("bins").value),event_ms:Number($("duration").value)};
+    if(modelMode()){o.recognition="model";if(recordingUpload){o.audio_b64=recordingUpload.data;o.upload_key=recordingUpload.key;}else o.example_id=$("recording-example").value;}
+    return o;
   }
-  function signature(o) { return JSON.stringify(Object.keys(defaults).map(k => o[k])); }
+  function signature(o) { return JSON.stringify([...Object.keys(defaults),"recognition","example_id","upload_key"].map(k => k==="sound" && o.recognition==="model"?"recording":k==="confidence" && o.recognition==="model"?null:["example_id","upload_key"].includes(k)?o[k]||"":o[k])); }
   function applySettings(o) {
+    $("recognition-mode").value=o.recognition==="model"?"model":"scripted";
     const ids = {sound:"sound",angle:"angle",snr_db:"snr",condition:"condition",seed:"seed",active_frac:"bins",event_ms:"duration"};
     Object.entries(ids).forEach(([key,id]) => $(id).value = o[key]);
     $("confidence").value = Math.round(o.confidence*100); labels();
   }
   function labels() {
-    const ambient = $("sound").value === "ambient";
+    const ml=modelMode();
+    $("clear-recording-upload").hidden=!recordingUpload;
+    $("scripted-source-controls").hidden=ml;$("scripted-score-controls").hidden=ml;
+    document.querySelector(".presets").hidden=ml;document.querySelector(".sound-library").hidden=ml;
+    $("duration").hidden=ml;document.querySelector("label[for=duration]").hidden=ml;
+    text("journey-class-note",ml?"Trained model scores from the recording.":"Supplied scores for teaching the policy.");
+    $("recording-controls").hidden=!ml;$("sound").disabled=ml;$("duration").disabled=ml;
+    $("confidence").disabled=ml;$("snr").max=ml?80:30;if(+$("snr").value>+$("snr").max)$("snr").value=$("snr").max;
+    const ambient = !ml && $("sound").value === "ambient";
     text("angle-value",ambient ? "Not applicable" : `${$("angle").value}° · ${angleName(+$("angle").value)}`);
     text("snr-value",ambient ? "Not used" : `${$("snr").value} dB`);
     text("confidence-value",policyClasses[$("sound").value]==="Ambient" ? "96% ambient" : `${$("confidence").value}%`);
     text("sound-policy",`Supplied label: ${policyClasses[$("sound").value]}. Scores are scripted, not recognized. Added sounds use named demo event lanes; study classes are unchanged.`);
-    ["angle","snr"].forEach(id => $(id).disabled = ambient);$("confidence").disabled=policyClasses[$("sound").value]==="Ambient";
+    ["angle","snr"].forEach(id => $(id).disabled = ambient);$("confidence").disabled=ml||policyClasses[$("sound").value]==="Ambient";
+    if(ml){text("confidence-value","From model");text("sound-policy","Real recording mode: class scores are computed from the same virtual Mic 1 audio that you hear. No manual class score. 80 dB means almost no added noise; recordings may already contain noise.");}
     document.querySelectorAll("[data-sound]").forEach(b=>b.classList.toggle("selected",b.dataset.sound===$("sound").value));
     document.querySelectorAll("[data-angle]").forEach(b => b.disabled = ambient || Boolean(busy));
     $("stale").hidden = !result || signature(settings()) === signature(result.options);
@@ -159,7 +174,7 @@
     } catch (_) { silenceAudio();text("audio-status","Audio could not play. Visual replay remains available."); }
   }
   function renderStory(f,a) {
-    const active=Boolean(f?.source_active), score=f?Math.max(...f.probs.slice(0,4)):0;
+    const active=Boolean(f?.source_active), score=f?Math.max(...(result.critical_indices||[0,1,2,3]).map(i=>f.probs[i])):0;
     text("story-class",f?`${Math.round(score*100)}%`:"Awaiting input");
     text("story-direction",!f?"Awaiting window":!f.direction_available?"Unavailable":f.reliable?"Checks pass":"Checks fail");
     let step="input", title="Waiting for the sound to begin.", body="The three virtual microphones include background noise. A direction estimate alone does not justify an alert.";
@@ -181,14 +196,19 @@
       $("event-warning").dataset.level=a?warning.level:"pending";
       if(a)title=warning.message+(a.kind==="NONDIR"?". Direction withheld.":". Cue: "+a.motor_names.join(" and ")+".");
     }
-    text("story-step",`LIVE EXPLANATION / ${Math.round(replayTime)} MODEL MS`);text("story-title",title);text("story-body",body);
+    if(result.model_info){
+      if(!f){title="Listening before the first model prediction.";body="The recognizer needs 1,024 ms of audio. No class prediction or warning is available yet.";}
+      else if(a){title=`${a.sound.replaceAll("_"," ")}: ${a.kind==="NONDIR"?"general warning":a.motor_names.join(" and ")+" cue"}.`;body="This command comes from actual model scores and computed virtual-array direction checks. The selected file label did not choose the warning.";}
+      else{const i=f.probs.indexOf(Math.max(...f.probs));title=`Model hears ${className(i)} (${Math.round(f.probs[i]*100)}%).`;body="Recognition is calculated from this audio window. DEDA has not accepted a warning; it can miss an event or the model can predict the wrong class.";}
+    }
+    text("story-step",`LIVE EXPLANATION / ${Math.round(replayTime)} ${result.model_info?"CLIP":"MODEL"} MS`);text("story-title",title);text("story-body",body);
     document.querySelectorAll("[data-stage]").forEach(el=>el.classList.toggle("active",el.dataset.stage===step));
     document.body.classList.toggle("source-sounding",active && playing);
   }
   async function guidedScene(fallback=false) {
     if(busy || !connected) return;
     await enableAudio();
-    if(fallback) applySettings(presets.dropout);
+    if(fallback){if(modelMode()){$("condition").value="dropout";labels();}else applySettings(presets.dropout);}
     const o=settings();
     if(!result || signature(result.options)!==signature(o)) {const r=await runScene(o);if(!r)return;}
     seek(0);$("scene-title").closest(".stage").scrollIntoView({behavior:"instant",block:"start"});togglePlay();
@@ -214,14 +234,15 @@
     [["baseline",b],["deda",a]].forEach(([key,alert])=>{
       const other=key==="baseline"?"Fixed threshold + raw angle":"Separate class and direction evidence";
       text("duel-"+key,alert?(alert.kind==="NONDIR"?"General warning":alert.motor_names.join(" + ")):"No warning yet");
-      text("duel-"+key+"-note",alert?`${alert.t_ms-result.onset_ms} ms after onset · ${alert.kind==="NONDIR"?"direction withheld":"direction commanded"}`:other);
+      text("duel-"+key+"-note",alert?`${alert.t_ms-result.onset_ms} ms ${result.model_info?"from clip start":"after onset"} · ${alert.kind==="NONDIR"?"direction withheld":"direction commanded"}`:other);
       $("duel-"+key).closest("article").classList.toggle("has-alert",Boolean(alert));
     });
     if(!a && f?.decision.includes("Class accepted"))text("duel-deda-note","Class accepted; waiting for direction evidence.");
     const rows=$("class-evidence-bars").children;
     ["Horn","Siren","Shout","Beep"].forEach((name,i)=>{
-      const score=f?.evidence[i]??0,row=rows[i],bounded=Math.max(-8,Math.min(8,score));
+      const ei=result?.evidence_indices?.[i]??i,score=f?.evidence[ei]??0,row=rows[i],bounded=Math.max(-8,Math.min(8,score));
       row.querySelector("span").textContent=result?.scenario?.demo_event_lane && ["horn","siren","shout","beep"][i]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:name;
+      if(result?.class_names)row.querySelector("span").textContent=className(ei);
       row.querySelector("strong").textContent=fmt(score,2);
       const bar=row.querySelector("i");bar.style.width=`${Math.abs(bounded)/8*50}%`;
       bar.style.left=bounded<0?`${50-Math.abs(bounded)/8*50}%`:"50%";
@@ -254,7 +275,7 @@
     const f=result.frames[index];renderStory(f,a);renderComparison(f,a,b);
     if(!f) {
       text("estimated-value","—");badge("reliability-value","Before first window","");$("estimated-direction").style.display="none";
-      text("decision","Waiting for the first analysis window");text("reason","Source onset is 192 ms on the simulated clock.");
+      text("decision","Waiting for the first analysis window");text("reason",`${result.model_info?"Waiting for 1,024 ms of audio context before recognition.":"Source onset is 192 ms on the simulated clock."}`);
       text("source-active","Not yet");text("current-class","—");waveforms(null);
     } else {
       const d=f.direction,available=f.direction_available;
@@ -263,10 +284,10 @@
       $("estimated-direction").style.display=available?"":"none";$("estimated-direction").setAttribute("transform",`rotate(${d.theta_deg} 200 200)`);
       text("decision",f.decision);
       let reasons=f.reasons.join(". ");
-      if(Math.max(...f.probs.slice(0,4))<result.config.p_open) reasons += ". Critical-class score is below the episode-opening threshold.";
+      if(Math.max(...(result.critical_indices||[0,1,2,3]).map(i=>f.probs[i]))<result.config.p_open) reasons += ". Critical-class score is below the episode-opening threshold.";
       text("reason",reasons);text("source-active",f.source_active?"Yes":"No");
       const top=Math.max(...f.probs),cls=f.probs.indexOf(top);
-      text("current-class",`${result.scenario?.demo_event_lane && ["horn","siren","shout","beep"][cls]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`);
+      text("current-class",`${result.class_names?className(cls):result.scenario?.demo_event_lane && ["horn","siren","shout","beep"][cls]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`);
       text("signal-note",`Window ${index+1} · amplitude normalized for display`);waveforms(f);
     }
     const d=f?.direction,available=Boolean(f?.direction_available);
@@ -274,7 +295,7 @@
       text(id+"-value",available?fmt(value,digits):"—");$("check-"+id).classList.toggle("fail",available&&!pass);
       $("check-"+id).querySelector(".meter i").style.width=`${available?Math.min(100,Math.max(0,width)):0}%`;
     });
-    text("window-note",`${index<0?"Before first window":`Window ${index+1} of ${result.frames.length}`} · source ${result.onset_ms}–${result.offset_ms} ms`);
+    text("window-note",`${index<0?"Before first window":`Window ${index+1} of ${result.frames.length}`} · ${result.model_info?"clip":"source"} ${result.onset_ms}–${result.offset_ms} ms`);
   }
   function tick(now) {
     animationId=null;if(!playing||!result)return;
@@ -298,6 +319,22 @@
     text("baseline-latency",!b.critical?"No event":b.detected?`${b.latency_ms} ms`:"No warning");text("baseline-summary",outcomeText(b));
     $("true-direction").setAttribute("transform",`rotate(${r.options.angle} 200 200)`);$("true-direction").style.display=r.options.sound!=="ambient"?"":"none";
     text("scene-explanation",r.options.sound==="ambient"?"Scripted ambient control; no warning expected.":`${r.scenario?.audio_source||"Procedural source"}. ${conditionNames[r.options.condition]}. Supplied ${policyClasses[r.options.sound]} score: ${Math.round(r.options.confidence*100)}%. ${r.scenario?.demo_event_lane?"Named demo event lane using the reference policy timing and reliability rules; not a newly trained class. ":""}Microphone propagation and direction are simulated. ${r.options.sound==="rain"?"Rain uses a non-directional information cue.":""}`);
+    text("mode-badge",r.model_info?"Real recording / trained recognition / virtual direction":"Scripted teaching mode / supplied class scores");
+    text("signal-active-label",r.model_info?"Mic signal present":"Source active");
+    text("frame-score-label",r.model_info?"Model prediction":"Scripted class score");
+    text("evidence-note",r.model_info?"Showing four warning-class evidence lanes from the actual model. All 50 class probabilities are available in the trace export. Evidence scores are not percentages and reset after acceptance.":"Positive values support a class; negative values oppose it. Evidence resets after an alert. Scores are not percentages.");
+    text("score-origin",r.model_info?"Actual model prediction":"Scripted score, not recognition");
+    text("delay-label",r.model_info?"DEDA warning / clip clock":"DEDA first warning");
+    text("baseline-clock-label",r.model_info?"Baseline warning / clip clock":"Baseline B first warning");
+    text("outcome-label",r.model_info?"Virtual direction outcome":"Direction outcome");
+    if(r.model_info){
+      const info=r.model_info;
+      text("model-result",`Whole-clip model result: ${info.prediction.replaceAll("_"," ")} / ${(info.confidence*100).toFixed(1)}% average score. ${info.truth?"Dataset label: "+info.truth+". "+(info.correct?"Matched.":"Did not match."):"Uploaded audio: no verified class label."}`);
+      text("latency-note","Time from clip start; exact event onset is unlabelled.");
+      text("class-summary",m.correct_class==null?"No verified first-alert class outcome":m.correct_class?"First warning class matched dataset label":"First warning class did not match dataset label");
+      text("scene-explanation","Actual trained predictions and GCC-PHAT estimates from the same virtual microphone channels. Source bearing is simulated ground truth. Changes in angle, noise or faults can alter the result; failures are not hidden. The first prediction needs 1,024 ms.");
+      $("jump-onset").textContent="Clip starts";
+    }else{text("model-result","");$("jump-onset").textContent="Sound begins";}
     text("runtime",`Seed ${r.options.seed} · engine computation ${fmt(r.runtime_ms,0)} ms · no hardware timing`);
     $("source-range").style.left=`${r.onset_ms/r.duration_ms*100}%`;$("source-range").style.width=`${(r.offset_ms-r.onset_ms)/r.duration_ms*100}%`;$("source-range").style.right="auto";
     $("timeline").max=r.duration_ms;$("timeline").step=r.hop_ms;
@@ -310,17 +347,17 @@
       const row=document.createElement("tr"),td=document.createElement("td"),button=document.createElement("button");
       button.className="row-button";button.dataset.time=f.t_ms;button.textContent=`${f.t_ms} ms`;button.setAttribute("aria-label",`Inspect window ending ${f.t_ms} ms`);td.append(button);row.append(td);
       const top=Math.max(...f.probs),cls=f.probs.indexOf(top);
-      cells(row,[`${result.scenario?.demo_event_lane && ["horn","siren","shout","beep"][cls]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`,f.direction_available?`${fmt(f.direction.theta_deg)}°`:"Unavailable",f.direction_available?(f.reliable?"Pass":"Fail"):"Unavailable",f.alerts.length?f.alerts.map(a=>`${a.kind} → ${a.motor_names.join(" + ")}`).join("; "):f.decision]);$("log").append(row);
+      cells(row,[`${result.class_names?className(cls):result.scenario?.demo_event_lane && ["horn","siren","shout","beep"][cls]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`,f.direction_available?`${fmt(f.direction.theta_deg)}°`:"Unavailable",f.direction_available?(f.reliable?"Pass":"Fail"):"Unavailable",f.alerts.length?f.alerts.map(a=>`${a.kind} → ${a.motor_names.join(" + ")}`).join("; "):f.decision]);$("log").append(row);
     });
     replayTime=r.alerts.find(a=>a.kind!=="UPDATE")?.t_ms ?? r.onset_ms+r.hop_ms;lastIndex=-2;renderReplay();labels();
-    if(remember){history.unshift({options:r.options,deda:r.deda,baseline:r.baseline,created:new Date().toISOString()});history=history.slice(0,6);try{localStorage.setItem("soundscape-scenes-v2",JSON.stringify(history));}catch(_){}renderHistory();}
+    if(remember&&!r.model_info){history.unshift({options:r.options,deda:r.deda,baseline:r.baseline,created:new Date().toISOString()});history=history.slice(0,6);try{localStorage.setItem("soundscape-scenes-v2",JSON.stringify(history));}catch(_){}renderHistory();}
   }
   async function runScene(o = settings()) {
     if(busy||!connected)return;
     if(!$("seed").checkValidity())$("seed").closest("details").open=true;
     if(!$("scene-form").reportValidity())return;
     stopReplay();setBusy("scene");status("run-status","Computing the microphone signals, direction and decision…");
-    try{const r=await request("/api/simulate",o);showResult(r);status("run-status",`${r.frames.length} computed windows · seed ${r.options.seed}. Paused at the first warning, when available. Use Hear & watch to replay with sound.`);return r;}
+    try{const r=await request(o.recognition==="model"?"/api/simulate-recording":"/api/simulate",o,60000);showResult(r);status("run-status",`${r.frames.length} computed windows · seed ${r.options.seed}. Paused at the first warning, when available. Use Hear & watch to replay with sound.`);return r;}
     catch(e){status("run-status",e.message,true);}finally{setBusy();}
   }
   function renderHistory() {
@@ -395,10 +432,20 @@
     try {
       const health=await request("/api/health");if(health.status!=="ok")throw new Error("Engine is unavailable");connected=true;hosted=health.execution==="serverless";if(hosted)rememberJob(null);text("connection",hosted?"Hosted Python engine connected":"Python engine connected");$("connection").className="online";$("reconnect").hidden=true;setBusy(busy);renderHistory();
       if(jobId){setBusy("experiment");$("cancel-experiment").hidden=false;$("cancel-experiment").disabled=false;tab("experiment");pollJob();}
-      else if(!result&&!busy){applySettings(defaults);runScene();}
+      else if(!result&&!busy){
+        applySettings(defaults);
+        try{const ms=await request("/api/ml/status");modelExamples=ms.examples||[];$("recording-example").replaceChildren();modelExamples.forEach(e=>{const op=document.createElement("option");op.value=e.id;op.textContent=e.label.replaceAll("_"," ")+" / test recording";$("recording-example").append(op);});
+          if(ms.ready&&modelExamples.length){$("recognition-mode").value="model";$("snr").max=80;$("snr").value=80;}
+        }catch(_){$("recognition-mode").value="scripted";}labels();runScene();
+      }
     } catch(e){connected=false;text("connection","Python server unavailable");$("connection").className="error";$("reconnect").hidden=false;setBusy(busy);status("run-status",location.hostname!=="127.0.0.1" && location.hostname!=="localhost"?"Hosted engine unavailable. Try Reconnect in a moment.":"Start-Simulator.cmd starts the local engine. Then select Reconnect.",true);}
   }
 
+  $("recognition-mode").addEventListener("change",()=>{if(modelMode()){$("snr").max=80;$("snr").value=80;}labels();});
+  $("recording-example").addEventListener("change",()=>{recordingUpload=null;$("recording-upload").value="";text("recording-upload-note","Using the selected dataset recording.");labels();});
+  $("clear-recording-upload").addEventListener("click",()=>{recordingUpload=null;$("recording-upload").value="";text("recording-upload-note","Using the selected held-out dataset recording.");labels();});
+  $("recording-upload").addEventListener("change",async()=>{const f=$("recording-upload").files[0];if(!f)return;recordingUpload=null;if(f.size>3000000){status("run-status","Use a WAV under 3 MB",true);labels();return;}stopReplay();setBusy("upload");try{const bytes=new Uint8Array(await f.arrayBuffer());let textData="";bytes.forEach(b=>textData+=String.fromCharCode(b));recordingUpload={data:btoa(textData),key:f.name+":"+f.size+":"+f.lastModified};text("recording-upload-note","Loaded "+f.name+". Its filename is not used for prediction.");}catch(e){status("run-status","Could not read the WAV: "+e.message,true);}finally{setBusy();labels();}});
+  $("random-recording").addEventListener("click",()=>{if(busy||!modelExamples.length)return;recordingUpload=null;$("recording-upload").value="";text("recording-upload-note","Using the selected dataset recording.");$("recording-example").selectedIndex=Math.floor(Math.random()*modelExamples.length);$("angle").value=Math.floor(Math.random()*360);labels();guidedScene();});
   $("scene-form").noValidate=true;
   $("scene-form").addEventListener("submit",async e=>{
     e.preventDefault();
@@ -411,7 +458,7 @@
     status("run-status",`${r.frames.length} computed windows · replay started from the beginning${audioEnabled?" with sound":" (sound muted)"}.`);
   });
   $("scene-form").addEventListener("input",labels);$("scene-form").addEventListener("change",labels);
-  $("reset").addEventListener("click",()=>{applySettings(defaults);status("run-status","Default settings restored. Run the scene to recompute.");});
+  $("reset").addEventListener("click",()=>{const ml=modelMode();applySettings(defaults);if(ml){$("recognition-mode").value="model";$("snr").max=80;$("snr").value=80;labels();}status("run-status","Default settings restored. Run the scene to recompute.");});
   document.querySelectorAll("[data-angle]").forEach(b=>b.addEventListener("click",()=>{$("angle").value=b.dataset.angle;labels();}));
   $("compass").addEventListener("click",e=>{if(busy||!connected||$("sound").value==="ambient")return;const point=new DOMPoint(e.clientX,e.clientY).matrixTransform($("compass").getScreenCTM().inverse());if(Math.hypot(point.x-200,point.y-200)<45)return;$("angle").value=Math.round((Math.atan2(point.x-200,200-point.y)*180/Math.PI+360)%360)%360;labels();});
   document.querySelectorAll("[data-sound]").forEach(b=>b.addEventListener("click",()=>{if(busy||!connected)return;applySettings({...defaults,sound:b.dataset.sound});guidedScene();}));
@@ -448,6 +495,7 @@
   $("stage-mute").addEventListener("click",()=>$("audio-toggle").click());
   $("listen-stage").addEventListener("click",()=>guidedScene());
   $("next-demo").addEventListener("click",()=>{
+    if(modelMode()&&modelExamples.length){recordingUpload=null;$("recording-upload").value="";text("recording-upload-note","Using the selected dataset recording.");$("recording-example").selectedIndex=($("recording-example").selectedIndex+1)%modelExamples.length;labels();guidedScene();return;}
     const keys=["horn","siren","dropout","weak","ambient"];
     const current=keys.findIndex(k=>result && signature(presets[k])===signature(result.options));
     applySettings(presets[keys[(current+1)%keys.length]]);guidedScene();

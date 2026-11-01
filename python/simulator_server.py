@@ -61,7 +61,12 @@ def start_experiment(raw):
 def csv_result(result):
     out = io.StringIO(newline="")
     w = csv.writer(out)
-    if "trials" in result:
+    if result.get('mode')=='trained_recording_scene':
+        names=result['class_names']
+        w.writerow(['clip_time_ms','predicted_class','estimated_virtual_angle','reliable']+['p_'+n for n in names]+['deda_alerts'])
+        for f in result['frames']:
+            w.writerow([f['t_ms'],names[max(range(len(names)),key=lambda i:f['probs'][i])],f['direction']['theta_deg'],f['reliable']]+f['probs']+[json.dumps(f['alerts'])])
+    elif "trials" in result:
         w.writerow(["sound", "condition", "angle", "snr_db", "confidence", "seed", "policy",
                     "missed", "missed_or_late", "wrong_direction", "nondirectional", "latency_ms", "false_alerts"])
         for trial in result["trials"]:
@@ -119,12 +124,17 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, json.dumps({"error": "Use the local simulator page"}))
         try:
             size = int(self.headers.get("Content-Length", "0"))
-            if size <= 0 or size > (4_100_000 if urlsplit(self.path).path == "/api/ml/predict" else 4096):
+            if size <= 0 or size > (4_100_000 if urlsplit(self.path).path in ("/api/ml/predict","/api/simulate-recording") else 4096):
                 raise ValueError("WAV requests must be under 4.1 MB; scene requests under 4 KB")
             raw = json.loads(self.rfile.read(size))
             if not isinstance(raw, dict):
                 raise ValueError("Request must be a JSON object")
             path = urlsplit(self.path).path
+            if path == "/api/simulate-recording":
+                from soundscape_ml.scene import recording_scene
+                result=recording_scene(raw)
+                result['csv']=csv_result(result)
+                return self.reply(200,json.dumps(result,allow_nan=False))
             if path == "/api/ml/predict":
                 from soundscape_ml.service import predict
                 return self.reply(200,json.dumps(predict(raw),allow_nan=False))

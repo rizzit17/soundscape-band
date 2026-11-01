@@ -44,3 +44,31 @@ def test_prediction_export_can_replay_the_same_multiclass_policy():
         for a in policy.step(Window(w['t_ms'],w['probabilities'],None)):
             replay.append((a.t_ms,a.kind,r['classes'][a.cls],a.motors))
     assert replay==[(a['t_ms'],a['kind'],a['label'],a['motors']) for a in r['alerts']]
+
+
+def test_main_recording_scene_ignores_supplied_class_and_score():
+    from soundscape_ml.scene import recording_scene
+    raw=dict(example_id=examples()[0]['id'],angle=90,snr_db=80)
+    a=recording_scene(dict(raw,sound='siren',confidence=.99))
+    b=recording_scene(dict(raw,sound='horn',confidence=.05,truth='glass_breaking'))
+    assert a['alerts']==b['alerts']
+    assert a['frames'][0]['probs']==b['frames'][0]['probs']
+    assert a['model_info']['truth']=='dog'
+    assert a['mode']=='trained_recording_scene' and len(a['class_names'])==50
+    assert a['frames'][0]['t_ms']==1024
+    assert a['deda']['missed_or_late'] is None
+    reliable=next(f for f in a['frames'] if f['reliable'])
+    assert abs((reliable['direction']['theta_deg']-90+180)%360-180)<10
+
+
+def test_main_recording_audio_and_dropout_use_same_computed_evidence():
+    import base64,numpy as np
+    from soundscape_ml.scene import recording_scene
+    r=recording_scene(dict(example_id=examples()[0]['id'],angle=180,snr_db=80,condition='dropout'))
+    assert r['alerts'] and all(a['motors']==15 for a in r['alerts'])
+    assert all(not f['direction_available'] for f in r['frames'])
+    samples=np.frombuffer(base64.b64decode(r['audio']['data']),dtype='<i2')/32767
+    for f in r['frames']:
+        end=int(f['t_ms']*16)
+        expected=np.asarray(f['waveform'][0])*r['audio']['normalization_gain']
+        np.testing.assert_allclose(samples[end-1024:end:16],expected,atol=1/32767)
