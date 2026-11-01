@@ -50,3 +50,21 @@ def test_invalid_and_cross_origin_requests_rejected(hosted_url):
         assert err.value.code==code
     with pytest.raises(HTTPError) as err:request(hosted_url+'/api/experiment/start',{})
     assert err.value.code==404
+
+@pytest.mark.skipif(not (ROOT/'models/esc50/model.npz').exists(),reason='Train real-data model first')
+def test_hosted_ml_status_prediction_and_upload_boundary(hosted_url):
+    import base64
+    status=request(hosted_url+'/api/index?route=ml/status')
+    assert status['ready'] and status['training_allowed'] is False
+    item=status['examples'][0]
+    r=request(hosted_url+'/api/index?route=ml/predict',dict(example_id=item['id']))
+    assert r['mode']=='trained_real_audio' and r['truth']==item['label']
+    assert len(r['classes'])==50 and len(r['windows'][0]['probabilities'])==50
+    data=(ROOT/'models/esc50/examples'/item['id']).read_bytes()
+    upload=request(hosted_url+'/api/ml/predict',dict(audio_b64=base64.b64encode(data).decode(),truth='invented'))
+    assert upload['truth'] is None
+    assert upload['prediction']==r['prediction']
+    assert upload['confidence']==r['confidence']
+    for route,data,code in [('ml/train',{'action':'prepare'},404),('ml/predict',{'example_id':'../../private'},400),('ml/predict',{'example_id':item['id'],'virtual':{'angle':400}},400)]:
+        with pytest.raises(HTTPError) as err:request(hosted_url+'/api/'+route,data)
+        assert err.value.code==code

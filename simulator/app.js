@@ -17,13 +17,14 @@
     if (kind === "ambient") return !m.critical && r.alerts.length === 0;
     if (kind === "weak") return m.critical && !m.detected && r.alerts.length === 0;
     if (kind === "dropout") return m.detected && m.nondirectional && m.first_alert.motors === 15;
+    if (kind.startsWith("event_")) return m.detected && m.correct_class;
     return m.detected && !m.nondirectional && !m.wrong_direction && m.correct_class;
   }
   if (typeof module !== "undefined" && module.exports) { module.exports = {frameIndex, outcomeText, reviewMatches}; return; }
 
   const $ = id => document.getElementById(id);
   const soundNames = {horn:"Vehicle horn", siren:"Siren", shout:"Shout-like noise", beep:"Reversing beep", ambient:"Ambient noise", ambulance:"Ambulance siren", truck_horn:"Truck air horn", smoke_alarm:"Smoke alarm", dog_bark:"Dog barking", doorbell:"Doorbell", glass_break:"Glass breaking", rain:"Rain"};
-  const policyClasses = {horn:"Horn",siren:"Siren",shout:"Shout",beep:"Beep",ambient:"Ambient",ambulance:"Siren",truck_horn:"Horn",smoke_alarm:"Siren",dog_bark:"Ambient",doorbell:"Ambient",glass_break:"Ambient",rain:"Ambient"};
+  const policyClasses = {horn:"Horn",siren:"Siren",shout:"Shout",beep:"Beep",ambient:"Ambient",ambulance:"Ambulance",truck_horn:"Truck horn",smoke_alarm:"Smoke alarm",dog_bark:"Dog barking",doorbell:"Doorbell",glass_break:"Glass breaking",rain:"Rain"};
   const conditionNames = {clean:"Single source", interference:"Competing sources", reflection:"Reflection surrogate", clock_fault:"Timing fault", dropout:"Direction dropout"};
   const motorNames = ["Front", "Right", "Back", "Left"];
   const fmt = (n, digits = 1) => n == null || !Number.isFinite(Number(n)) ? "—" : Number(n).toFixed(digits);
@@ -41,6 +42,17 @@
     {key:"weak",name:"Uncertain class",expected:"No accepted warning at score 0.30"},
     {key:"ambient",name:"Ambient control",expected:"No warning with the scripted ambient input"}
   ];
+  const everyday = ["ambulance","truck_horn","smoke_alarm","dog_bark","doorbell","glass_break","rain"];
+  everyday.forEach(sound=>{
+    const key="event_"+sound;
+    presets[key]={...defaults,sound};
+    cases.push({key,name:soundNames[sound],expected:sound==="rain"?"Rain information: general warning":"Named warning with supplied label; direction only when trusted"});
+    const dropout=key+"_dropout",weak=key+"_weak";
+    presets[dropout]={...defaults,sound,condition:"dropout"};
+    presets[weak]={...defaults,sound,confidence:.30};
+    cases.push({key:dropout,name:soundNames[sound]+" / no direction",expected:"Named general warning; no angle claimed",check:"dropout"});
+    cases.push({key:weak,name:soundNames[sound]+" / low confidence",expected:"No accepted warning",check:"weak"});
+  });
   let result = null, experimentResult = null, reviewResults = [], busy = "", connected = false, hosted = false;
   let playing = false, replayTime = 0, lastTick = 0, lastIndex = -2, animationId = null;
   let jobId = null, pollTimer = null, pollInFlight = false;
@@ -66,7 +78,7 @@
     text("angle-value",ambient ? "Not applicable" : `${$("angle").value}° · ${angleName(+$("angle").value)}`);
     text("snr-value",ambient ? "Not used" : `${$("snr").value} dB`);
     text("confidence-value",policyClasses[$("sound").value]==="Ambient" ? "96% ambient" : `${$("confidence").value}%`);
-    text("sound-policy",policyClasses[$("sound").value]==="Ambient" && !ambient?"Outside the four alert classes: supplies scripted Ambient input, so no warning is expected.":`Policy input: ${policyClasses[$("sound").value]}. Synthetic waveform; class scores are scripted, not recognized.`);
+    text("sound-policy",`Supplied label: ${policyClasses[$("sound").value]}. Scores are scripted, not recognized. Added sounds use named demo event lanes; study classes are unchanged.`);
     ["angle","snr"].forEach(id => $(id).disabled = ambient);$("confidence").disabled=policyClasses[$("sound").value]==="Ambient";
     document.querySelectorAll("[data-sound]").forEach(b=>b.classList.toggle("selected",b.dataset.sound===$("sound").value));
     document.querySelectorAll("[data-angle]").forEach(b => b.disabled = ambient || Boolean(busy));
@@ -161,6 +173,14 @@
     else if(active && result.options.sound!=="ambient") {step="class";title="You can hear a sound. The class evidence is insufficient.";body="Audibility and classification confidence are different. Here the score is a scripted input; the policy can withhold an alert, which also means an important event can be missed.";}
     else if(result.options.sound==="ambient") {title="Background sound does not trigger this control case.";body="The input is scripted as ambient. This demonstrates the policy's no-alert path, not measured real-world false-alarm performance.";}
     else if(replayTime>=result.offset_ms) {title="The event ended without an accepted warning.";body="Inspect the class input and direction checks to understand the miss. Withholding an uncertain alert has a cost as well as a benefit.";}
+    const warning=result.scenario?.warning;
+    $("event-warning").hidden=!warning;
+    if(warning){
+      text("event-warning-message",a?warning.message:"Waiting to accept: "+soundNames[result.options.sound]);
+      text("event-warning-detail",a?`${warning.level.toUpperCase()} / ${a.kind==="NONDIR"?"General cue; no direction claimed":a.motor_names.join(" + ")} / illustrative pulse sequence ${warning.illustrative_pattern_ms.join(" / ")} ms (on/off alternating). Not validated haptics.`:"The selected sound label is supplied. A warning appears only after the policy accepts its evidence.");
+      $("event-warning").dataset.level=a?warning.level:"pending";
+      if(a)title=warning.message+(a.kind==="NONDIR"?". Direction withheld.":". Cue: "+a.motor_names.join(" and ")+".");
+    }
     text("story-step",`LIVE EXPLANATION / ${Math.round(replayTime)} MODEL MS`);text("story-title",title);text("story-body",body);
     document.querySelectorAll("[data-stage]").forEach(el=>el.classList.toggle("active",el.dataset.stage===step));
     document.body.classList.toggle("source-sounding",active && playing);
@@ -201,6 +221,7 @@
     const rows=$("class-evidence-bars").children;
     ["Horn","Siren","Shout","Beep"].forEach((name,i)=>{
       const score=f?.evidence[i]??0,row=rows[i],bounded=Math.max(-8,Math.min(8,score));
+      row.querySelector("span").textContent=result?.scenario?.demo_event_lane && ["horn","siren","shout","beep"][i]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:name;
       row.querySelector("strong").textContent=fmt(score,2);
       const bar=row.querySelector("i");bar.style.width=`${Math.abs(bounded)/8*50}%`;
       bar.style.left=bounded<0?`${50-Math.abs(bounded)/8*50}%`:"50%";
@@ -212,6 +233,15 @@
     $("timeline").value=replayTime; text("time-value",`${Math.round(replayTime)} / ${result.duration_ms} ms`);
     const index=frameIndex(result.frames,replayTime);
     $("previous").disabled=replayTime<=0; $("next").disabled=replayTime>=result.duration_ms;
+    const warning=result.scenario?.warning, command=result.alerts.filter(a=>a.t_ms<=replayTime).at(-1);
+    document.body.classList.toggle("named-event",Boolean(warning));
+    let pulse=true;
+    if(warning && command && playing){
+      const pattern=warning.illustrative_pattern_ms, period=pattern.reduce((a,b)=>a+b,0)+700;
+      let phase=(replayTime-command.t_ms)%period; pulse=false;
+      for(let i=0;i<pattern.length;i++){if(phase<pattern[i]){pulse=i%2===0;break;}phase-=pattern[i];}
+    }
+    document.querySelectorAll(".motor").forEach(el=>el.classList.toggle("pulse-off",Boolean(warning && command && playing && !pulse)));
     if(index===lastIndex) return; lastIndex=index;
     const latest = alerts => alerts.filter(a=>a.t_ms<=replayTime).at(-1);
     const a=latest(result.alerts),b=latest(result.baseline_alerts);
@@ -236,7 +266,7 @@
       if(Math.max(...f.probs.slice(0,4))<result.config.p_open) reasons += ". Critical-class score is below the episode-opening threshold.";
       text("reason",reasons);text("source-active",f.source_active?"Yes":"No");
       const top=Math.max(...f.probs),cls=f.probs.indexOf(top);
-      text("current-class",`${["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`);
+      text("current-class",`${result.scenario?.demo_event_lane && ["horn","siren","shout","beep"][cls]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`);
       text("signal-note",`Window ${index+1} · amplitude normalized for display`);waveforms(f);
     }
     const d=f?.direction,available=Boolean(f?.direction_available);
@@ -267,7 +297,7 @@
     text("class-summary",m.critical?m.detected?(m.correct_class?"First alert class matched":"First alert class did not match"):"Class evidence not accepted":"Scripted ambient probabilities");
     text("baseline-latency",!b.critical?"No event":b.detected?`${b.latency_ms} ms`:"No warning");text("baseline-summary",outcomeText(b));
     $("true-direction").setAttribute("transform",`rotate(${r.options.angle} 200 200)`);$("true-direction").style.display=r.options.sound!=="ambient"?"":"none";
-    text("scene-explanation",r.scenario?.outside_alert_classes?`${soundNames[r.options.sound]} is an audible synthetic example outside the four critical classes. Scripted Ambient scores are supplied; no alert is expected. Direction is still computed from the generated microphone channels.`:r.options.sound==="ambient"?"This control uses a fixed ambient probability of 0.96 and no false-class confusers. No alert here is not evidence of classifier accuracy.":`${conditionNames[r.options.condition]}. The scripted ${policyClasses[r.options.sound].toLowerCase()} class score is ${Math.round(r.options.confidence*100)}%; the direction and motor commands are computed from synthetic microphone signals.`);
+    text("scene-explanation",r.options.sound==="ambient"?"Scripted ambient control; no warning expected.":`${r.scenario?.audio_source||"Procedural source"}. ${conditionNames[r.options.condition]}. Supplied ${policyClasses[r.options.sound]} score: ${Math.round(r.options.confidence*100)}%. ${r.scenario?.demo_event_lane?"Named demo event lane using the reference policy timing and reliability rules; not a newly trained class. ":""}Microphone propagation and direction are simulated. ${r.options.sound==="rain"?"Rain uses a non-directional information cue.":""}`);
     text("runtime",`Seed ${r.options.seed} · engine computation ${fmt(r.runtime_ms,0)} ms · no hardware timing`);
     $("source-range").style.left=`${r.onset_ms/r.duration_ms*100}%`;$("source-range").style.width=`${(r.offset_ms-r.onset_ms)/r.duration_ms*100}%`;$("source-range").style.right="auto";
     $("timeline").max=r.duration_ms;$("timeline").step=r.hop_ms;
@@ -280,7 +310,7 @@
       const row=document.createElement("tr"),td=document.createElement("td"),button=document.createElement("button");
       button.className="row-button";button.dataset.time=f.t_ms;button.textContent=`${f.t_ms} ms`;button.setAttribute("aria-label",`Inspect window ending ${f.t_ms} ms`);td.append(button);row.append(td);
       const top=Math.max(...f.probs),cls=f.probs.indexOf(top);
-      cells(row,[`${["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`,f.direction_available?`${fmt(f.direction.theta_deg)}°`:"Unavailable",f.direction_available?(f.reliable?"Pass":"Fail"):"Unavailable",f.alerts.length?f.alerts.map(a=>`${a.kind} → ${a.motor_names.join(" + ")}`).join("; "):f.decision]);$("log").append(row);
+      cells(row,[`${result.scenario?.demo_event_lane && ["horn","siren","shout","beep"][cls]===result.scenario.internal_evidence_slot?soundNames[result.options.sound]:["Horn","Siren","Shout","Beep","Ambient"][cls]} · ${fmt(top*100,0)}%`,f.direction_available?`${fmt(f.direction.theta_deg)}°`:"Unavailable",f.direction_available?(f.reliable?"Pass":"Fail"):"Unavailable",f.alerts.length?f.alerts.map(a=>`${a.kind} → ${a.motor_names.join(" + ")}`).join("; "):f.decision]);$("log").append(row);
     });
     replayTime=r.alerts.find(a=>a.kind!=="UPDATE")?.t_ms ?? r.onset_ms+r.hop_ms;lastIndex=-2;renderReplay();labels();
     if(remember){history.unshift({options:r.options,deda:r.deda,baseline:r.baseline,created:new Date().toISOString()});history=history.slice(0,6);try{localStorage.setItem("soundscape-scenes-v2",JSON.stringify(history));}catch(_){}renderHistory();}
@@ -352,13 +382,13 @@
   function renderReview() {
     $("review-table").replaceChildren();cases.forEach((c,i)=>{
       const r=reviewResults[i],row=document.createElement("tr");cells(row,[c.name,c.expected,r?`${outcomeText(r.deda)}${r.deda.latency_ms==null?"":" · "+r.deda.latency_ms+" ms"}`:"Not run"]);
-      const check=document.createElement("td"),label=document.createElement("span");label.className="badge"+(r?(reviewMatches(c.key,r)?" good":" fail"):"");label.textContent=r?(reviewMatches(c.key,r)?"As expected":"Inspect result"):"Pending";check.append(label);row.append(check);
+      const check=document.createElement("td"),label=document.createElement("span");label.className="badge"+(r?(reviewMatches(c.check||c.key,r)?" good":" fail"):"");label.textContent=r?(reviewMatches(c.check||c.key,r)?"As expected":"Inspect result"):"Pending";check.append(label);row.append(check);
       const evidence=document.createElement("td"),button=document.createElement("button");button.textContent="Inspect scene";button.disabled=!r||Boolean(busy);button.dataset.inspect=i;evidence.append(button);row.append(evidence);$("review-table").append(row);
     });$("review-json").disabled=!reviewResults.length||Boolean(busy);$("print-review").disabled=!reviewResults.length||Boolean(busy);
   }
   async function runReview() {
     if(busy||!connected)return;stopReplay();reviewResults=[];setBusy("review");renderReview();
-    try{for(const c of cases){status("review-status",`Computing ${reviewResults.length+1} of ${cases.length}: ${c.name}…`);reviewResults.push(await request("/api/simulate",presets[c.key]));renderReview();}const expected=reviewResults.filter((r,i)=>reviewMatches(cases[i].key,r)).length;status("review-status",`${expected} of ${cases.length} behaviors matched the stated expectations. This is a scene check, not an accuracy score.`);}
+    try{for(const c of cases){status("review-status",`Computing ${reviewResults.length+1} of ${cases.length}: ${c.name}…`);reviewResults.push(await request("/api/simulate",presets[c.key]));renderReview();}const expected=reviewResults.filter((r,i)=>reviewMatches(cases[i].check||cases[i].key,r)).length;status("review-status",`${expected} of ${cases.length} behaviors matched the stated expectations. This is a scene check, not an accuracy score.`);}
     catch(e){status("review-status",e.message+" Completed evidence is retained below.",true);}finally{setBusy();renderReview();}
   }
   async function connect() {
@@ -398,7 +428,7 @@
   $("cancel-experiment").addEventListener("click",async()=>{if(!jobId)return;$("cancel-experiment").disabled=true;try{await request("/api/experiment/cancel",{id:jobId});status("experiment-status","Cancellation requested. Finishing the current trial…");}catch(e){status("experiment-status",e.message,true);$("cancel-experiment").disabled=false;}});
   $("experiment-json").addEventListener("click",()=>exportData(experimentResult,"json","soundscape-experiment"));$("experiment-csv").addEventListener("click",()=>exportData(experimentResult,"csv","soundscape-trials"));
   $("run-review").addEventListener("click",runReview);$("review-table").addEventListener("click",e=>{const b=e.target.closest("[data-inspect]");if(b&&!busy){const r=reviewResults[Number(b.dataset.inspect)];applySettings(r.options);showResult(r,false);tab("demo");status("run-status","Inspecting the exact computed review-case trace.");window.scrollTo({top:0,behavior:"instant"});}});
-  $("review-json").addEventListener("click",()=>exportData({schema_version:1,scope:"Synthetic scene checks, not recognition accuracy or hardware validation",created_utc:new Date().toISOString(),cases:reviewResults.map((r,i)=>({case:cases[i].name,expected:cases[i].expected,matched:reviewMatches(cases[i].key,r),result:r}))},"json","soundscape-review-evidence"));
+  $("review-json").addEventListener("click",()=>exportData({schema_version:1,scope:"Synthetic scene checks, not recognition accuracy or hardware validation",created_utc:new Date().toISOString(),cases:reviewResults.map((r,i)=>({case:cases[i].name,expected:cases[i].expected,matched:reviewMatches(cases[i].check||cases[i].key,r),result:r}))},"json","soundscape-review-evidence"));
   $("print-review").addEventListener("click",()=>window.print());$("reconnect").addEventListener("click",connect);
   ["Horn","Siren","Shout","Beep"].forEach(name=>{
     const row=document.createElement("div"),label=document.createElement("span"),track=document.createElement("div"),bar=document.createElement("i"),value=document.createElement("strong");

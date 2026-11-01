@@ -1,0 +1,54 @@
+[
+  {
+    "asset": "dog_bark.wav",
+    "dataset_file": "1-100032-A-0.wav",
+    "author": "nfrae",
+    "title": "rose_bark.wav",
+    "source": "https://freesound.org/s/100032/",
+    "individual_license": "CC0",
+    "dataset": "https://github.com/karolpiczak/ESC-50",
+    "dataset_license": "CC BY-NC 3.0 (ESC-10 subset CC BY 3.0)",
+    "excerpt_start_seconds": 1.1,
+    "changes": "Energy-selected excerpt; mono 16 kHz linear resampling; 5 ms fades; peak normalization",
+    "sha256": "8d13210a43cb42e23738d99396371f7175629585f309fbf18f402364d3bfb598"
+  },
+  {
+    "asset": "rain.wav",
+    "dataset_file": "1-17367-A-10.wav",
+    "author": "cognito perceptu",
+    "title": "unlocki door to mod rain.wav",
+    "source": "https://freesound.org/s/17367/",
+    "individual_license": "CC0",
+    "dataset": "https://github.com/karolpiczak/ESC-50",
+    "dataset_license": "CC BY-NC 3.0 (ESC-10 subset CC BY 3.0)",
+    "excerpt_start_seconds": 1.1,
+    "changes": "Energy-selected excerpt; mono 16 kHz linear resampling; 5 ms fades; peak normalization",
+    "sha256": "dda546fe3a3e18f4ac67907a42150a9d5bc65ee9bcba20dfbe61f740c70b65f6"
+  },
+  {
+    "asset": "glass_break.wav",
+    "dataset_file": "1-20133-A-39.wav",
+    "author": "gezortenplotz",
+    "title": "breaking_glass.wav",
+    "source": "https://freesound.org/s/20133/",
+    "individual_license": "CC-BY",
+    "dataset": "https://github.com/karolpiczak/ESC-50",
+    "dataset_license": "CC BY-NC 3.0 (ESC-10 subset CC BY 3.0)",
+    "excerpt_start_seconds": 0.0,
+    "changes": "Energy-selected excerpt; mono 16 kHz linear resampling; 5 ms fades; peak normalization",
+    "sha256": "3497188d1914c3c2592cc1db1c4174c071b55f05da6dc3439a874a4944efa7de"
+  },
+  {
+    "asset": "siren.wav",
+    "dataset_file": "1-31482-A-42.wav",
+    "author": "dobroide",
+    "title": "20070224.siren.flac",
+    "source": "https://freesound.org/s/31482/",
+    "individual_license": "CC-BY",
+    "dataset": "https://github.com/karolpiczak/ESC-50",
+    "dataset_license": "CC BY-NC 3.0 (ESC-10 subset CC BY 3.0)",
+    "excerpt_start_seconds": 1.4,
+    "changes": "Energy-selected excerpt; mono 16 kHz linear resampling; 5 ms fades; peak normalization",
+    "sha256": "efa582b642da6be9cb4d660be142d41f0f4a7e1391fc68fa4019f4c89fdbfc85"
+  }
+]

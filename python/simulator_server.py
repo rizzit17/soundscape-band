@@ -94,6 +94,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/ml/status":
+            from soundscape_ml.service import status
+            return self.reply(200,json.dumps(dict(status(),training_allowed=True),allow_nan=False))
         if path == "/api/health":
             return self.reply(200, json.dumps({"status": "ok", "engine": "Python DEDA + GCC-PHAT", "classification": "simulated"}))
         if path == "/api/experiment/status":
@@ -103,7 +106,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(404, json.dumps({"error": "Experiment not found. It may belong to an earlier server session."}))
                 data = {k: v for k, v in JOB.items() if k != "cancel"}
             return self.reply(200, json.dumps(data, allow_nan=False))
-        files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/favicon.svg": ("favicon.svg", "image/svg+xml")}
+        files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/favicon.svg": ("favicon.svg", "image/svg+xml"), "/ml": ("ml.html", "text/html"), "/ml.js": ("ml.js", "text/javascript")}
         if path not in files:
             return self.reply(404, json.dumps({"error": "Not found"}))
         name, mime = files[path]
@@ -116,12 +119,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, json.dumps({"error": "Use the local simulator page"}))
         try:
             size = int(self.headers.get("Content-Length", "0"))
-            if size <= 0 or size > 4096:
-                raise ValueError("Request must contain a JSON object under 4 KB")
+            if size <= 0 or size > (4_100_000 if urlsplit(self.path).path == "/api/ml/predict" else 4096):
+                raise ValueError("WAV requests must be under 4.1 MB; scene requests under 4 KB")
             raw = json.loads(self.rfile.read(size))
             if not isinstance(raw, dict):
                 raise ValueError("Request must be a JSON object")
             path = urlsplit(self.path).path
+            if path == "/api/ml/predict":
+                from soundscape_ml.service import predict
+                return self.reply(200,json.dumps(predict(raw),allow_nan=False))
+            if path == "/api/ml/train":
+                from soundscape_ml.service import start_job
+                return self.reply(202,json.dumps(start_job(raw.get('action'))))
             if path == "/api/experiment/start":
                 job_id = start_experiment(raw)
                 if job_id is None:

@@ -214,15 +214,21 @@ class _Suppressor:
 
 # ------------------------------------------------------------------ DEDA
 class DEDA:
-    def __init__(self, cfg: Optional[Config] = None):
+    def __init__(self, cfg: Optional[Config] = None, *, critical=CRITICAL, n_classes=5):
         self.cfg = cfg or Config()
+        self.critical = tuple(critical)
+        self.n_classes = n_classes
+        if not self.critical or any(c < 0 or c >= n_classes for c in self.critical):
+            raise ValueError("Invalid critical class indices")
+        if min(len(self.cfg.h_hi), len(self.cfg.h_lo), len(self.cfg.h_urgent)) <= max(self.critical):
+            raise ValueError("A threshold is required for every alert class")
         self.sup = _Suppressor(self.cfg)
         self._reset_episode()
 
     def _reset_episode(self):
         self.open = False
         self.k = 0
-        self.L = [0.0] * 4          # class evidence per critical class
+        self.L = [0.0] * (max(self.critical) + 1)  # default remains four; ML uses dataset indices
         self.Rx = self.Ry = self.W = 0.0
         self.n_dir = 0
         self.max_coh = 0.0
@@ -265,7 +271,7 @@ class DEDA:
     def step(self, w: Window) -> List[Alert]:
         cfg = self.cfg
         out = self.sup.step(w)
-        cand = [c for c in CRITICAL if not self.sup.active(c)]
+        cand = [c for c in self.critical if not self.sup.active(c)]
 
         if not self.open:
             if not cand or max(w.probs[c] for c in cand) < cfg.p_open:
@@ -277,7 +283,7 @@ class DEDA:
 
         # evidence update -------------------------------------------------
         gain = 1.0 if self.k == 0 else cfg.kappa
-        for c in CRITICAL:
+        for c in self.critical:
             if c in cand:
                 self.L[c] += gain * logit(w.probs[c], cfg.clip)
             else:
@@ -333,7 +339,8 @@ class FixedThreshold:
     """
 
     def __init__(self, tau: float = 0.7, use_direction: bool = True,
-                 cfg: Optional[Config] = None):
+                 cfg: Optional[Config] = None, *, critical=CRITICAL):
+        self.critical = tuple(critical)
         self.tau = tau
         self.use_direction = use_direction
         self.cfg = cfg or Config(use_dir_reliability=False)
@@ -341,7 +348,7 @@ class FixedThreshold:
 
     def step(self, w: Window) -> List[Alert]:
         out = self.sup.step(w, updates_enabled=False)
-        cand = [c for c in CRITICAL if not self.sup.active(c)]
+        cand = [c for c in self.critical if not self.sup.active(c)]
         if not cand:
             return out
         c = max(cand, key=lambda i: w.probs[i])

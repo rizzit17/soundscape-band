@@ -4,6 +4,10 @@
 
 SoundScape Band investigates DEDA (Dual-Evidence Deadline Alerting), a policy that accepts sound-class evidence separately from direction evidence. The current submission consists of a synthetic numerical study, an audible Python-backed browser simulation and a Wokwi virtual ESP32 policy replay. A three-microphone neckband with four vibration motors is the proposed hardware concept; no physical wearable or recorded wearable validation is submitted.
 
+## Real dataset training and testing
+
+The browser now includes a **Real dataset ML lab** at `/ml`: train a compact 50-class classifier on ESC-50, evaluate a separate test fold, inspect mistakes, and upload WAVs for actual model predictions. Training runs locally; the exported NumPy model can run on the hosted site. This mode uses real audio recognition with non-directional DEDA commands, separate from the scripted acoustic scenes and historical paper results. [Setup, protocol and limitations](docs/REAL_AUDIO_ML_GUIDE.md).
+
 ## Open the live simulation
 
 **[Launch SoundScape Lab](https://soundscape-simulation.vercel.app)** in a modern browser. No installation or local Python server is needed for this hosted version. Click Hear & watch, then Presentation mode. The Python engine runs on Vercel; hosted experiments return results when complete rather than using the local background-job controls. [Deployment details](deployment/README.md).
@@ -123,7 +127,7 @@ python python/simulator_server.py
 
 Open **http://127.0.0.1:8765**. To use the review-session port, run `python python/simulator_server.py --port 8766` and open **http://127.0.0.1:8766**. These addresses are for the local version; the public Vercel link above works without the laptop server. On Windows, `Start-Simulator.cmd` also starts the server after dependencies are installed. The app runs locally without internet after setup.
 
-The scene explorer offers 12 synthetic sound scenarios, including ambulance sirens, truck horns, smoke alarms, dog barking, doorbells, glass breaking and rain. The first three reuse existing alert classes; the other additions are explicitly labelled outside-class controls with no alert expected. [Sound mappings](simulator/README.md#common-environment-sound-library). The study and Wokwi cases retain their existing class definitions.
+The scene explorer offers 12 sound scenarios. Dog, glass, rain and emergency siren use credited recorded exemplars in the virtual array; the remaining sources are generated. All seven additions have named demo warnings and accepted/dropout/low-confidence checks. Labels and scores remain supplied, not recognized; added event lanes do not alter the scientific benchmark or Wokwi classes. [Sound warnings and audio credits](simulator/README.md#common-environment-sound-library).
 
 The workspace includes audible replay of the same synthetic Mic 1 signal, live DEDA explanations, presentation mode, Baseline B versus DEDA commands, class-evidence bars and key-event jumps. Replay speeds are 0.25×, 0.5×, 1× and 2×; changing speed also changes pitch. Run scene recomputes settings and starts replay, respecting the mute switch. Six presets, processing traces, local history and JSON/CSV exports remain available. Experiments report real trial progress and support cancellation. A five-case review checklist generates inspectable evidence and a print-friendly summary.
 

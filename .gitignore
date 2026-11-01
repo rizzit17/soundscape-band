@@ -44,3 +44,7 @@ python/pytest-cache-files-*/
 
 # Vercel local project linkage
 .vercel/
+
+# Public ML source corpora and feature caches stay local
+!python/deda/audio/*.wav
+!models/esc50/examples/*.wav

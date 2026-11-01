@@ -15,7 +15,7 @@ Run `Start-Simulator.cmd` from the repository root, or `python python/simulator_
 
 ## What you hear
 
-The engine returns 16 kHz, mono, signed 16-bit PCM samples from the same synthetic microphone-1 channel passed to GCC-PHAT. This includes the configured noise, competing source or reflected copy. A single clip-wide gain limits the peak to 85% before the browser volume control. It preserves relative event/noise amplitude but is not calibrated sound pressure or comparable loudness across clips. It is not spatial audio, a microphone recording, or a trained recognizer. The shout example is speech-like noise, not intelligible speech.
+The engine returns 16 kHz, mono, signed 16-bit PCM samples from the same synthetic microphone-1 channel passed to GCC-PHAT. This includes the configured noise, competing source or reflected copy. Sources can now be recorded exemplars or procedural waveforms. A single clip-wide gain limits the peak to 85% before the browser volume control. It preserves relative event/noise amplitude but is not calibrated sound pressure or comparable loudness across clips. It is not spatial audio, a synchronized wearable recording, or a trained recognizer. The shout example is speech-like noise, not intelligible speech.
 
 DEDA's class input remains scripted and independent of the audio SNR. Sound playback makes the scene understandable; it does not add real sound recognition. Source ripple animations indicate the event's active interval; motor highlights reflect actual policy alerts and stay selected for inspection. Their pulses are illustrative. A no-alert scene can represent a miss, not proof that withholding an alert was correct. Per-window geometry checks can pass on a wrong direction.
 
@@ -48,18 +48,24 @@ Hosted experiments return the full result in a single request. Live per-trial pr
 
 ## Common environment sound library
 
-The Sound selector and everyday-environment buttons now offer **12 procedural sound scenarios**: the original horn, siren, shout-like noise, reversing beep and ambient noise, plus ambulance siren, truck air horn, smoke alarm, dog barking, doorbell, glass breaking and rain.
+Twelve source scenarios are available. Dog, glass, rain and emergency siren use credited ESC-50/Freesound excerpts; see [audio credits](../python/deda/audio/README.md) and [per-file provenance](../python/deda/audio/credits.json). Other sources remain procedural. Mono recordings are propagated through the ideal virtual array, not presented as synchronized wearable recordings. Siren source is an emergency-siren exemplar, not confirmation of a vehicle type.
 
-| Added waveform | Scripted policy input | Expected policy scope |
-|---|---|---|
-| Ambulance siren | Siren | Critical-event example |
-| Truck air horn | Horn | Critical-event example |
-| Smoke alarm | Siren | Critical-event example |
-| Dog barking | Ambient | Outside the four critical classes; no alert expected |
-| Doorbell | Ambient | Outside the four critical classes; no alert expected |
-| Glass breaking | Ambient | Outside the four critical classes; no alert expected |
-| Rain | Ambient | Outside the four critical classes; no alert expected |
+Every added scene now has a named warning and an illustrative pulse sequence:
 
-Clicking a sound-library button applies the default scene settings and starts audible replay. Use the dropdown to retain other settings, then Run scene. Unsupported critical classes are not silently added or relabelled as Shout. Ambient routing for these controls is a deliberate input assumption, not an assessment that a real dog or breaking glass is harmless. The screen explains this boundary. Source direction and SNR remain adjustable for these generated sources, while the critical-class score control is disabled when Ambient input is supplied.
+| Scene | Message | Level |
+| --- | --- | --- |
+| Ambulance | Emergency vehicle nearby | Urgent |
+| Truck horn | Truck horn nearby | Urgent |
+| Smoke alarm | Smoke alarm sounding | Urgent |
+| Dog | Dog barking nearby | Awareness |
+| Doorbell | Doorbell ringing | Notification |
+| Glass | Glass breaking nearby | Caution |
+| Rain | Rain in the surroundings | Information; direction withheld |
 
-Each added sound has a different generated waveform; it is not a recording. The audio still comes from the actual synthetic Mic 1 channel used for direction estimation. No recognizer was trained or expanded. The DEDA/C class dimensions and Wokwi prepared cases are unchanged. The scientific benchmark and quick/full experiment matrix retain their original sound classes and sample counts; these additions are scene-explorer examples, not new evaluation results.
+Labels and scores are supplied. Added scenes use a named event adapter around an existing reference-policy evidence slot (Horn timing thresholds for dog/doorbell/glass/rain/truck; Siren for ambulance/smoke). This is not a trained multiclass expansion: do not interpret the internal slot as a recognized Horn/Siren label. Exported alerts retain the scenario name. Low confidence withholds a warning; missing direction produces a named general warning. Patterns are illustrative and unvalidated, not measured vibrations.
+
+The Review checklist runs 26 cases: original five plus three per added sound (accepted, dropout, weak score). These are deterministic behavior checks, not recognition accuracy. Batch experiment classes, paper results and Wokwi policies remain unchanged. The live scene outcome's event flag includes informational demo events; it is not a real-world hazard designation.
+
+## Real dataset ML mode
+
+Open `/ml` (or use the Real dataset ML lab link). It supports local ESC-50 preparation/training, saved held-out evaluation, real test examples and WAV uploads. This mode uses model predictions instead of scripted sound scores, with no invented mono-audio direction. [Training and evaluation guide](../docs/REAL_AUDIO_ML_GUIDE.md). The scene explorer described above remains a separately labelled scripted demonstration.

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "5-203128-A-0.wav",
+    "label": "dog",
+    "source_id": "203128",
+    "fold": 5,
+    "source": "https://freesound.org/s/203128/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-179860-A-43.wav",
+    "label": "car_horn",
+    "source_id": "179860",
+    "fold": 5,
+    "source": "https://freesound.org/s/179860/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-117118-A-42.wav",
+    "label": "siren",
+    "source_id": "117118",
+    "fold": 5,
+    "source": "https://freesound.org/s/117118/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-221528-A-39.wav",
+    "label": "glass_breaking",
+    "source_id": "221528",
+    "fold": 5,
+    "source": "https://freesound.org/s/221528/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-210612-A-37.wav",
+    "label": "clock_alarm",
+    "source_id": "210612",
+    "fold": 5,
+    "source": "https://freesound.org/s/210612/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-218980-A-30.wav",
+    "label": "door_wood_knock",
+    "source_id": "218980",
+    "fold": 5,
+    "source": "https://freesound.org/s/218980/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-151085-A-20.wav",
+    "label": "crying_baby",
+    "source_id": "151085",
+    "fold": 5,
+    "source": "https://freesound.org/s/151085/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-181766-A-10.wav",
+    "label": "rain",
+    "source_id": "181766",
+    "fold": 5,
+    "source": "https://freesound.org/s/181766/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-242490-A-14.wav",
+    "label": "chirping_birds",
+    "source_id": "242490",
+    "fold": 5,
+    "source": "https://freesound.org/s/242490/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  },
+  {
+    "id": "5-182007-A-36.wav",
+    "label": "vacuum_cleaner",
+    "source_id": "182007",
+    "fold": 5,
+    "source": "https://freesound.org/s/182007/",
+    "changes": "Mono 16 kHz resampling only; full clip, no energy crop."
+  }
+]

@@ -154,24 +154,44 @@ def test_listening_audio_is_the_same_microphone_signal_as_trace():
         np.testing.assert_allclose(samples[i*1024:(i+1)*1024:16], expected, atol=1/32767)
     assert simulate(dict(seed=83), include_frames=False)['audio'] is None
 
-@pytest.mark.parametrize('sound,policy_class', [('ambulance','siren'),('truck_horn','horn'),('smoke_alarm','siren'),('dog_bark','ambient'),('doorbell','ambient'),('glass_break','ambient'),('rain','ambient')])
-def test_environment_examples_preserve_policy_class_scope(sound, policy_class):
+@pytest.mark.parametrize('sound', ['ambulance','truck_horn','smoke_alarm','dog_bark','doorbell','glass_break','rain'])
+def test_named_environment_warning_and_uncertainty_paths(sound):
     import base64
     import numpy as np
     r = simulate(dict(sound=sound))
-    assert r['scenario']['policy_class'] == policy_class
-    assert r['scenario']['synthetic'] is True
-    samples = np.frombuffer(base64.b64decode(r['audio']['data']), dtype='<i2')
+    assert r['scenario']['policy_class'] == sound
+    assert r['scenario']['demo_event_lane']
+    assert r['scenario']['warning']['message']
+    assert r['deda']['detected'] and r['deda']['correct_class']
+    assert r['deda']['first_alert']['sound'] == sound
+    assert all(a['sound'] == sound for a in r['alerts'])
+    samples=np.frombuffer(base64.b64decode(r['audio']['data']),dtype='<i2')
     assert np.isfinite(samples).all() and np.max(np.abs(samples.astype(float))) > 100
     assert r['audio']['data'] == simulate(dict(sound=sound))['audio']['data']
-    if policy_class == 'ambient':
-        assert r['scenario']['outside_alert_classes'] is True
-        assert not r['deda']['critical']
-        assert r['alerts'] == []
-        assert all(f['probs'][4] == .96 for f in r['frames'])
-    else:
-        assert r['deda']['detected'] and r['deda']['correct_class']
-        assert r['deda']['first_alert']['sound'] == policy_class
+    fallback=simulate(dict(sound=sound,condition='dropout'))
+    assert fallback['deda']['nondirectional']
+    assert fallback['deda']['first_alert']['motors'] == 15
+    assert fallback['deda']['first_alert']['sound'] == sound
+    weak=simulate(dict(sound=sound,confidence=.30))
+    assert not weak['deda']['detected'] and weak['alerts'] == []
+    if sound == 'rain':
+        assert r['scenario']['warning']['level'] == 'information'
+        assert r['deda']['nondirectional']
+
+
+def test_recorded_sources_are_credited_and_are_simulated_into_same_mic_audio():
+    import json,hashlib
+    from pathlib import Path
+    from deda.simulator import RECORDED
+    root=Path(__file__).parents[1]/'deda'/'audio'
+    credits=json.loads((root/'credits.json').read_text())
+    assert set(RECORDED.values()) == {c['asset'] for c in credits}
+    for c in credits:
+        assert c['author'] and c['source'].startswith('https://freesound.org/')
+        assert hashlib.sha256((root/c['asset']).read_bytes()).hexdigest() == c['sha256']
+    r=simulate(dict(sound='dog_bark'))
+    assert not r['scenario']['synthetic']
+    assert 'recorded' in r['scenario']['audio_source']
 
 
 def test_environment_examples_have_distinct_audio():

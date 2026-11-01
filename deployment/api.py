@@ -27,10 +27,13 @@ class handler(BaseHTTPRequestHandler):
         return parse_qs(parsed.query).get('route', [parsed.path.removeprefix('/api/')])[0].strip('/')
 
     def do_GET(self):
+        if self.route() == 'ml/status':
+            from soundscape_ml.service import status
+            return self.reply(200,json.dumps(dict(status(),training_allowed=False),allow_nan=False))
         if self.route() == 'health':
             return self.reply(200, json.dumps(dict(status='ok', engine='Python DEDA + GCC-PHAT', classification='simulated', execution='serverless')))
         # Exact allowlist also provides a local preview of the deployed adapter.
-        files = {'/':('index.html','text/html'), '/app.js':('app.js','text/javascript'), '/style.css':('style.css','text/css'), '/favicon.svg':('favicon.svg','image/svg+xml')}
+        files = {'/':('index.html','text/html'), '/app.js':('app.js','text/javascript'), '/style.css':('style.css','text/css'), '/favicon.svg':('favicon.svg','image/svg+xml'), '/ml':('ml.html','text/html'), '/ml.js':('ml.js','text/javascript')}
         path = urlsplit(self.path).path
         if path in files:
             name,mime=files[path]
@@ -43,15 +46,18 @@ class handler(BaseHTTPRequestHandler):
         host = self.headers.get('Host', '')
         if origin and (urlsplit(origin).netloc != host or urlsplit(origin).scheme not in ('http','https')):
             return self.reply(403,json.dumps(dict(error='Use the simulation page on this host.')))
-        if self.route() not in ('simulate','experiment'):
+        if self.route() not in ('simulate','experiment','ml/predict'):
             return self.reply(404,json.dumps(dict(error='Not found')))
         try:
             size=int(self.headers.get('Content-Length','0'))
-            if not 0 < size <= 4096:
-                raise ValueError('Request must be a JSON object under 4 KB')
+            if not 0 < size <= (4_100_000 if self.route()=='ml/predict' else 4096):
+                raise ValueError('WAV requests must be under 4.1 MB; scene requests under 4 KB')
             raw=json.loads(self.rfile.read(size))
             if not isinstance(raw,dict):
                 raise ValueError('Request must be a JSON object')
+            if self.route()=='ml/predict':
+                from soundscape_ml.service import predict
+                return self.reply(200,json.dumps(predict(raw),allow_nan=False))
             result=simulate(raw) if self.route()=='simulate' else experiment(raw)
             result['csv']=csv_result(result)
             self.reply(200,json.dumps(result,allow_nan=False))

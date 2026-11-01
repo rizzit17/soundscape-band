@@ -5,10 +5,11 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 120,
-      "includeFiles": "python/**"
+      "includeFiles": "{python,models,results}/**"
     }
   },
   "rewrites": [
+    {"source":"/ml", "destination":"/ml.html"},
     {"source": "/api/:path*", "destination": "/api/index?route=:path*"}
   ],
   "headers": [

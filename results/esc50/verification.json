@@ -1,0 +1,9 @@
+{
+  "model_sha256": "bbddd17d3d15546788c82de8ee558131e12afca2284f7250fb5c92db40a16986",
+  "test_clips": 400,
+  "test_accuracy": 0.4275,
+  "test_macro_f1": 0.4067733240122525,
+  "scope": "Saved-model inference only; no fitting, calibration or threshold changes",
+  "created_utc": "2026-11-01T18:43:27Z",
+  "matches_training_evaluation": true
+}

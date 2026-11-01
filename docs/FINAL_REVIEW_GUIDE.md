@@ -58,4 +58,8 @@ Node is optional for these JavaScript checks and is not needed to run the app. W
 
 ## Additional everyday sounds
 
-The browser now has 12 synthetic source scenarios. Use the everyday-sound buttons to hear ambulance, truck horn, smoke alarm, dog barking, doorbell, glass breaking and rain. Ambulance/smoke alarm reuse the Siren policy input; truck horn reuses Horn. The other additions deliberately supply Ambient scores because the original policy has no corresponding critical class. Explain that no alert is expected by design, not that a trained classifier correctly rejected a hazard. The original five review cases and study counts are unchanged. [Exact mappings](../simulator/README.md#common-environment-sound-library).
+The 12-source explorer includes recorded dog, glass, rain and emergency-siren exemplars in a virtual array, plus generated sources. Each added sound has a named warning, level and illustrative pulse sequence. Rain is an informational general cue. Labels/scores remain scripted. The Review checklist has 26 cases, including accepted/dropout/low-confidence checks for all seven additions. The paper benchmark and Wokwi definitions are unchanged. [Details and credits](../simulator/README.md#common-environment-sound-library).
+
+## Real dataset ML extension
+
+The Real dataset ML lab at `/ml` replaces supplied class labels with a trained 50-category ESC-50 baseline. It has held-out results and WAV uploads. Measured accuracy is 42.75% on 400 clips; this is not a production-ready recognizer. It is a separate experiment from the paper. Mono inputs have no measured direction; optional virtual geometry remains simulated. [Setup and honest interpretation](REAL_AUDIO_ML_GUIDE.md).

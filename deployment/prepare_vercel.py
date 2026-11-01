@@ -5,10 +5,16 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'work/vercel-site'
 for p in [OUT/'api',OUT/'public',OUT/'python/deda']:
     p.mkdir(parents=True,exist_ok=True)
-for name in ['index.html','app.js','style.css','favicon.svg']:
+for name in ['index.html','app.js','style.css','favicon.svg','ml.html','ml.js']:
     shutil.copyfile(ROOT/'simulator'/name,OUT/'public'/name)
 for name in ['__init__.py','simulator.py','policy.py','doa.py']:
     shutil.copyfile(ROOT/'python/deda'/name,OUT/'python/deda'/name)
+shutil.copytree(ROOT/'python/soundscape_ml',OUT/'python/soundscape_ml',dirs_exist_ok=True,ignore=shutil.ignore_patterns('__pycache__'))
+if (ROOT/'models/esc50/model.npz').exists():
+    shutil.copytree(ROOT/'models/esc50',OUT/'models/esc50',dirs_exist_ok=True)
+    (OUT/'results/esc50').mkdir(parents=True,exist_ok=True)
+    shutil.copyfile(ROOT/'results/esc50/evaluation.json',OUT/'results/esc50/evaluation.json')
+shutil.copytree(ROOT/'python/deda/audio',OUT/'python/deda/audio',dirs_exist_ok=True)
 shutil.copyfile(ROOT/'python/simulator_server.py',OUT/'python/simulator_server.py')
 shutil.copyfile(ROOT/'deployment/api.py',OUT/'api/index.py')
 shutil.copyfile(ROOT/'deployment/vercel.json',OUT/'vercel.json')
